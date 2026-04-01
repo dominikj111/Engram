@@ -77,7 +77,7 @@ compile_error
 struct Node {
     id:           u32,
     label:        String,       // e.g. "borrow_checker"
-    kind:         NodeKind,     // Concept | Question | Solution | Latent
+    kind:         NodeKind,     // Concept | Question | Solution | Latent | Escalation
     activation:   f32,          // transient score during query processing
     tags:         Vec<String>,  // semantic tags, e.g. ["ownership", "rust"]
 }
@@ -85,12 +85,13 @@ struct Node {
 
 Node kinds:
 
-| Kind       | Description                                    |
-| ---------- | ---------------------------------------------- |
-| `Concept`  | A domain term or context anchor                |
-| `Question` | A breaking or clarifying question node         |
-| `Solution` | A leaf node with an actionable answer          |
-| `Latent`   | Auto-discovered hidden concept                 |
+| Kind           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `Concept`      | A domain term or context anchor                          |
+| `Question`     | A breaking or clarifying question node                   |
+| `Solution`     | A leaf node with a text answer or typed action contract  |
+| `Latent`       | Auto-discovered hidden concept                           |
+| `Escalation`   | Path terminus that exports structured context for handoff|
 
 ### 3.3 Edge Structure
 
@@ -114,6 +115,198 @@ borrow_checker → mutable_reference_conflict
   usage_count: 14
   path_labels: ["ownership_violation", "single_threaded"]
 ```
+
+### 3.4 Solution Node Variants
+
+A `Solution` node carries either a text answer or a typed **action contract**.
+The graph selects which solution to activate; a separate execution layer is
+responsible for running actions. The reasoning engine never calls external
+APIs directly — this boundary is non-negotiable for production deployments.
+
+```rust
+enum SolutionPayload {
+    Text(String),
+    Action {
+        name:   String,           // e.g. "CheckLineStatus"
+        params: Vec<ActionParam>, // typed parameter descriptors
+    },
+    Escalation {
+        reason:  String,          // why escalation was triggered
+        context: EscalationContext, // structured session state for handoff
+    },
+}
+
+struct ActionParam {
+    key:        String,            // e.g. "account_id"
+    kind:       ParamKind,         // String | Integer | Boolean | Enum(Vec<String>)
+    required:   bool,
+    resolution: ResolutionChain,   // ordered resolution steps (see below)
+}
+
+struct ResolutionChain {
+    steps: Vec<ParamSource>,       // tried in order; first success wins
+}
+
+enum ParamSource {
+    SessionContext,      // already known from current session
+    ConversationInfer,   // extract from recent user messages (e.g. postcode in "BT1 down")
+    BackendPrefill,      // query a backend lookup before asking the user
+    UserInput,           // only reached if all prior steps fail
+}
+```
+
+**Parameter resolution pipeline** — for each required parameter, the system
+tries each step in the `ResolutionChain` in order. The user is asked only
+for parameters where every prior step returned nothing:
+
+```text
+Resolving account_id for CheckLineStatus:
+  1. SessionContext       → found (authenticated session)      ✓ done
+Resolving postcode:
+  1. SessionContext       → not present
+  2. ConversationInfer    → "my BT1 connection" → "BT1"        ✓ done
+Resolving device_id:
+  1. SessionContext       → not present
+  2. ConversationInfer    → nothing found
+  3. BackendPrefill       → lookup by account_id → "RTR-0042"  ✓ done
+
+→ zero questions asked for a 3-parameter action
+```
+
+This is where most bots feel dumb — they ask for information they could
+derive. The resolution chain makes the derivation explicit and auditable.
+
+**Escalation payload** — when a path terminates at an `Escalation` node,
+the system assembles a structured handoff context rather than a bare message.
+This eliminates the most common support frustration: being asked to repeat
+information already given.
+
+```rust
+struct EscalationPayload {
+    summary:          String,          // one-line description of the situation
+    detected_goal:    String,          // e.g. "diagnose_connectivity_loss"
+    attempted_paths:  Vec<String>,     // path labels tried and rejected
+    confirmed_facts:  Vec<(String, String)>, // key-value pairs confirmed during session
+    missing_info:     Vec<String>,     // parameters never resolved
+    confidence:       f32,             // engine confidence at time of escalation
+    session_id:       String,          // link to full session record
+}
+```
+
+Example escalation payload handed to a human agent:
+
+```text
+summary:         "User reports complete connectivity loss; line check failed"
+detected_goal:   "diagnose_connectivity_loss"
+attempted_paths: ["outage_detected (ruled out)", "line_fault (inconclusive)"]
+confirmed_facts: [("postcode", "BT1 4AB"), ("device_id", "RTR-0042"),
+                  ("scope", "all_devices"), ("duration", "absent")]
+missing_info:    ["last_router_reboot_time"]
+confidence:      0.38
+session_id:      "2026-04-01-007"
+```
+
+The human agent sees context immediately; no repeated questions.
+
+Actions are defined externally to the graph — the graph contains only the
+contract; the executor holds the implementation. This makes every possible
+system action enumerable and auditable before deployment.
+
+### 3.5 Response Envelope
+
+Every output from the engine — whether an answer, a breaking question, an
+action confirmation, or an escalation — is wrapped in a structured
+`ResponseEnvelope`. A plain text stream is insufficient for any interface
+beyond a raw CLI.
+
+```rust
+struct ResponseEnvelope {
+    message:        String,             // primary text shown to the user
+    confidence:     ConfidenceLevel,    // explicit certainty state (see §4.5)
+    state:          SessionState,       // current session lifecycle stage
+    ui:             Vec<UIComponent>,   // optional interface elements
+    actions:        Vec<ActionOption>,  // available next steps the user can take
+    requires_input: bool,               // whether the engine is waiting on the user
+    trace:          Option<ReasoningTrace>, // populated when --explain is active
+}
+
+enum SessionState {
+    Active,          // query in progress
+    AwaitingInput,   // engine asked a breaking question or needs a parameter
+    ActionPending,   // action contract selected, execution layer not yet called
+    Resolved,        // goal confirmed
+    Escalated,       // handed off with full context
+    Abandoned,       // timed out or user exited without resolution
+}
+
+struct UIComponent {
+    kind:    UIKind,    // Button | Toggle | Form | StatusCard | Diagram
+    label:   String,
+    payload: String,   // action token or branch label to submit on selection
+}
+
+struct ActionOption {
+    label:    String,  // e.g. "Reboot router"
+    contract: String,  // action name from the action contract system (§3.4)
+    urgency:  u8,      // 0–10; higher options are rendered more prominently
+}
+```
+
+The `ResponseEnvelope` is what adapters (CLI, HTTP, voice, web chat) consume.
+Each adapter renders it differently:
+
+| Adapter   | `message`      | `ui`                          | `actions`               |
+| --------- | -------------- | ----------------------------- | ----------------------- |
+| CLI       | printed text   | ignored                       | printed as `[1/2/n]`    |
+| Web chat  | chat bubble    | rendered as buttons/forms     | rendered as action cards|
+| Voice     | spoken via TTS | ignored                       | read as numbered choices|
+| HTTP API  | JSON field     | JSON array                    | JSON array              |
+
+This single struct is the contract between the engine and every surface it
+runs on. Adding a new interface type requires only a new adapter — the engine
+is unchanged.
+
+### 3.6 Policy Engine
+
+The reasoning engine is powerful enough to select destructive or irreversible
+actions. A `PolicyEngine` sits between the reasoning layer and the execution
+layer and enforces hard constraints before any action runs.
+
+```rust
+struct PolicyEngine {
+    rules: Vec<PolicyRule>,
+}
+
+struct PolicyRule {
+    action_pattern: String,         // glob match against action name, e.g. "Cancel*"
+    required_permission: Permission,// None | Verified | Authenticated | Admin
+    rate_limit: Option<RateLimit>,  // max invocations per window
+    requires_confirmation: bool,    // force explicit user confirmation even if confident
+    rollback_available: bool,       // whether the action can be undone
+}
+
+enum Permission { None, Verified, Authenticated, Admin }
+
+struct RateLimit { max: u32, window_seconds: u32 }
+```
+
+Example policy rules:
+
+```text
+CancelService      → Permission: Authenticated, confirmation: true, rollback: false
+RebootRouter       → Permission: Verified,      confirmation: false, rollback: true
+CheckLineStatus    → Permission: None,           confirmation: false, rollback: true
+ScheduleEngineer   → Permission: Verified,       confirmation: true,  rollback: true
+```
+
+When the engine selects an action contract, the policy engine evaluates it
+before the execution layer is called. A blocked action does not fail silently —
+it routes back to the graph as a `permission_denied` activation, which may
+trigger a re-authentication breaking question or an escalation node.
+
+Policy rules are stored in `policies.json` alongside the knowledge files and
+are evaluated at runtime, not at graph-build time. This means a security rule
+can be updated without rebuilding the graph.
 
 ---
 
@@ -173,6 +366,49 @@ solution: lifetime_mismatch           →  score: 0.63
 If the top score exceeds the **answer threshold** $\theta_a$ (default 0.75),
 the answer is returned directly.  
 Otherwise the system enters the **Breaking Question** phase.
+
+### 4.5 Confidence State Machine
+
+The thresholds $\theta_a$ and $\theta_d$ already exist in the system, but
+they currently drive implicit branching. To be production-grade, confidence
+must be an **explicit named state** that determines observable system
+behaviour — not just a scalar compared against a constant.
+
+```rust
+enum ConfidenceLevel {
+    High,    // top score ≥ θ_a  AND  gap to second ≥ θ_d
+    Medium,  // top score ≥ θ_a  BUT  gap to second < θ_d
+    Low,     // top score < θ_a
+    Unknown, // no candidates reached activation at all
+}
+```
+
+Behaviour is fully determined by state, not by scattered threshold checks:
+
+| State     | Trigger                          | Engine behaviour                           |
+| --------- | -------------------------------- | ------------------------------------------ |
+| `High`    | top score high, gap wide         | Return answer immediately                  |
+| `Medium`  | top score high, gap narrow       | Present composite answer, ask 1 or 2       |
+| `Low`     | top score below answer threshold | Enter breaking question flow               |
+| `Unknown` | no candidates surfaced           | Noise handling / context expansion (SS15.5)|
+
+The `ConfidenceLevel` is included in the `ResponseEnvelope` (§3.5) so every
+adapter can render uncertainty visibly:
+
+```text
+[CLI]
+  ? Are multiple parts of the code mutably borrowing the same value?
+    Confidence: LOW — two candidates within 0.12 of each other
+
+[Web]
+  Confidence badge: 🟡 Medium — tap to see both possibilities
+
+[Voice]
+  "I have two possible answers. Which sounds more like your situation? ..."
+```
+
+Confidence is never hidden from the user. A system that knows it is uncertain
+and says so is more trustworthy than one that projects false certainty.
 
 ---
 
@@ -350,6 +586,97 @@ the reasoning dimension visible to the user.
 
 ---
 
+## 7.5 Goal Tracking
+
+A **goal** spans multiple exchanges and may contain parallel sub-queries. It
+differs from a single question/answer session in that it has a lifecycle and
+can be revised or extended mid-conversation without restarting graph traversal.
+
+### 7.5.1 Goal Structure
+
+```rust
+struct Goal {
+    id:                 u32,
+    description:        String,        // e.g. "diagnose unexpected £65 charge"
+    status:             GoalStatus,    // Open | Resolved | Revised | Escalated
+    sub_sessions:       Vec<SessionId>,// ordered sessions under this goal
+    active_path_labels: Vec<String>,   // accumulated context across sub-sessions
+    created_at:         Timestamp,
+    revised_at:         Option<Timestamp>,
+}
+
+enum GoalStatus { Open, Resolved, Revised, Escalated }
+```
+
+### 7.5.2 Goal Revision
+
+Mid-conversation, the user may reframe the problem. The system does not restart
+graph traversal — it re-enters propagation with existing context already biased
+by previously confirmed breaking question answers:
+
+```
+Turn 1: "my internet is slow"         → goal: diagnose_connectivity
+Turn 3: "actually it drops entirely"  → goal revised: connectivity_loss
+  → breaking questions already answered are retained in activation context
+  → system routes toward connectivity_loss nodes from current activation state
+  → no repeated questions for dimensions already resolved
+```
+
+### 7.5.3 Parallel Sub-Goals
+
+When a query activates two unrelated high-confidence paths simultaneously,
+the system may open two sub-goals rather than forcing a single branch:
+
+```
+User: "billing is wrong and my router won't connect"
+  Sub-goal A: billing_dispute      (activation: 0.84)
+  Sub-goal B: router_connectivity  (activation: 0.81)
+
+→ System handles B first (higher urgency score), then returns to A
+→ Both sub-sessions are logged under the same parent goal ID
+```
+
+Goal urgency scoring uses a configurable tag: solution nodes tagged
+`urgency:high` (e.g. connectivity loss, outage) are prioritised over
+`urgency:normal` (e.g. billing queries) when parallel sub-goals compete.
+
+Goals are persisted to `goals.json` alongside `sessions.json`.
+
+### 7.5.4 Urgency and Impact Scoring
+
+Not all goals are equal. When parallel sub-goals compete for handling order,
+or when a new query interrupts an open goal, the system uses two node-level
+tags to determine priority:
+
+```text
+urgency:high    — time-sensitive; user is blocked right now  (e.g. no internet)
+urgency:normal  — informational; user can wait              (e.g. billing query)
+impact:service  — affects core service delivery
+impact:account  — affects account or billing only
+```
+
+Priority score (higher = handle first):
+
+```text
+priority = urgency_weight * urgency + impact_weight * impact
+           (defaults: urgency_weight = 0.7, impact_weight = 0.3)
+```
+
+Example ordering:
+
+```text
+Sub-goal A: billing_dispute       urgency:normal, impact:account  → priority 0.30
+Sub-goal B: connectivity_loss     urgency:high,   impact:service  → priority 1.00
+
+→ B handled first; A queued with [deferred] marker in ResponseEnvelope
+```
+
+Urgency and impact tags are defined on `Solution` and `Escalation` nodes in
+the knowledge files — not hardcoded in the engine. Changing the urgency of a
+domain is a one-line edit to the knowledge file.
+
+---
+
 ## 8. Learning from Interaction
 
 Every completed session updates the graph along the confirmed path.
@@ -485,6 +812,107 @@ The system:
 3. Applies positive reinforcement to the correct path
 4. Applies negative reinforcement to the incorrect path
 5. Updates the entry status to `"resolved"` and archives it
+
+---
+
+## 11.3 UI Context Memory
+
+The session already records reasoning context — which paths were traversed,
+which questions were answered. But the interface layer has its own memory
+requirement: what was shown to the user, what they clicked, and what options
+were presented. Without this, the UI becomes inconsistent across turns.
+
+```rust
+struct UIContextRecord {
+    turn:       u32,
+    components: Vec<UIComponent>,  // what was rendered in this turn
+    selection:  Option<String>,    // what the user clicked or said, if anything
+    dismissed:  Vec<String>,       // options presented but not chosen
+}
+```
+
+The session record (§7) is extended with a `ui_history: Vec<UIContextRecord>`.
+This enables several behaviours that are otherwise impossible:
+
+**No repeated options.** If the user dismissed "Reboot router" in turn 2, it
+is not offered again in turn 4 unless a new activation path explicitly
+re-introduces it.
+
+**Coherent multi-turn forms.** If a parameter collection form was partially
+filled in turn 3, the system pre-populates it with already-confirmed values
+in turn 5 rather than starting blank.
+
+**Audit trail for UI actions.** Every button click and form submission is
+logged alongside the reasoning trace — essential for debugging interactions
+where the user claims "I already tried that."
+
+UI context records are held in memory for the session duration and flushed
+to `sessions.json` on session close. They are not persisted between sessions;
+the reasoning context already captures what mattered.
+
+---
+
+## 11.5 User Profile
+
+The system maintains a lightweight per-user profile derived from accumulated
+session data. No personal data is stored — the profile is a statistical
+summary of reasoning patterns observed across sessions.
+
+```rust
+struct UserProfile {
+    id:               String,                   // hashed OS username or auth token
+    dimension_counts: HashMap<String, u32>,     // breaking questions asked per dimension
+    confirmed_paths:  HashMap<String, u32>,     // path label → confirmation count
+    skill_level:      SkillLevel,               // derived from session history
+    last_active:      Timestamp,
+}
+
+enum SkillLevel { Novice, Intermediate, Expert }
+```
+
+### 11.5.1 Skill Level Derivation
+
+`SkillLevel` is derived from two signals: average breaking questions asked per
+session and total confirmed paths. Both signals update incrementally.
+
+| Avg questions/session | Confirmed paths | Skill Level  |
+| --------------------- | --------------- | ------------ |
+| ≥ 2.5                 | < 10            | Novice       |
+| 1.0 – 2.5             | 10 – 50         | Intermediate |
+| < 1.0                 | > 50            | Expert       |
+
+### 11.5.2 Profile-Driven Routing
+
+The profile modifies system behavior in two ways:
+
+**Breaking question selection:** dimensions the user has resolved correctly
+multiple times are de-prioritised. The system proposes the high-confidence
+branch directly rather than re-asking a settled dimension:
+
+```
+User has confirmed ownership_dimension correctly 8 times.
+→ Skip ownership_dimension breaking question
+→ Propose rust_ownership_violation directly with [profile shortcut] marker
+→ User can override with 'n' to force the full question flow
+```
+
+**Response verbosity:** Novice users receive full explanation traces by
+default; Expert users receive terse single-line answers unless `--explain`
+is passed explicitly:
+
+```
+Novice:
+  Answer: Only one mutable reference is permitted at a time in the same scope.
+  Path:   rust_ownership_violation
+  Why:    borrow_checker → mutable_reference_conflict (score 0.91)
+
+Expert:
+  mutable reference conflict  [rust_ownership_violation  0.91]
+```
+
+User profiles are stored in `profiles.json`. For CLI use, the profile ID is
+derived from the OS username. For network deployments (§20.8), it maps to
+the authenticated user identifier, enabling cross-channel profile continuity.
 
 ---
 
@@ -654,6 +1082,80 @@ the promotion step.
 
 ---
 
+## 15.5 Real-World Noise Handling
+
+The system currently assumes reasonably clean, cooperative input. Real users
+write vaguely, emotionally, with typos, and with partial information. These
+four conditions require explicit handling — not as special cases, but as
+first-class activation paths.
+
+### 15.5.1 Partial Activation
+
+When fewer than the minimum threshold of tokens match known nodes, full
+graph propagation is wasteful. Instead, the system enters a
+**best-guess + correction loop**:
+
+1. Activate whatever nodes matched, even at low confidence
+2. Surface the top candidate with a `[Low]` confidence badge (§4.5)
+3. Ask a single targeted clarification rather than a full breaking question
+4. If confirmed, reinforce; if rejected, record as weak memory and request
+   the user to rephrase
+
+This is how the `Unknown` confidence state (§4.5) resolves — not by saying
+"I don't understand", but by making the best available guess visible and
+correctable.
+
+### 15.5.2 Fuzzy Token Matching
+
+Before the provisional node creation path (§15) is triggered, the tokenizer
+applies three fuzzy layers in sequence:
+
+```text
+Input token: "conection" (typo)
+
+1. Edit-distance check (Levenshtein ≤ 2):
+   → "connection" matches node connectivity_issue  ✓
+
+Input token: "keeps cutting out"
+
+2. N-gram match (§13.2 bigrams):
+   → "cutting_out" → no direct match
+   → fallback to BM25 (§13.1) over solution texts
+   → scores connectivity_issue 0.61  ✓
+
+Input token: "AAARGH internet broken again"
+
+3. Emotional language strip:
+   → strip stop words and intensifiers
+   → retain: ["internet", "broken"]
+   → normal activation proceeds
+```
+
+The fuzzy layers run before any graph activation. The graph never sees
+malformed input — only normalised tokens.
+
+### 15.5.3 Incomplete Information Tolerance
+
+When required parameters for an action contract cannot be resolved (§3.4),
+the system does not fail — it starts execution with the information it has
+and defers the missing fields:
+
+```text
+Action: CheckLineStatus
+  account_id → resolved from session
+  postcode   → not found anywhere
+
+→ Initiate partial resolution:
+   "I can check your line status — what's your postcode?"
+   [one targeted question, not a form dump]
+```
+
+The action contract tracks which parameters are deferred. If the user
+answers, the execution proceeds. If they do not (e.g. voice drop-off,
+timeout), the session is marked `Abandoned` with the partial context saved.
+
+---
+
 ## 16. Context Bias
 
 Frequently reinforced paths become dominant. High-weight edges are traversed
@@ -686,6 +1188,35 @@ lower-weight edges occasionally participate in propagation.
 | **Total**          | **< 45 MB**    |
 
 Well below the 100 MB constraint, leaving room for graph growth.
+
+---
+
+## 17.5 Outcome Metrics
+
+Graph quality metrics (edge weights, confidence scores, latent node counts)
+measure internal beauty. They do not measure whether the system is actually
+solving problems for users. These are the metrics that matter in production.
+
+| Metric               | Definition                                                    | Target    |
+| -------------------- | ------------------------------------------------------------- | --------- |
+| Resolution rate      | Sessions ending `Resolved` / total sessions                   | > 80%     |
+| Time to resolution   | Turns from first query to `Resolved`                          | < 4 turns |
+| Escalation rate      | Sessions ending `Escalated` / total sessions                  | < 15%     |
+| Correction rate      | Weak memory entries / total sessions                          | < 10%     |
+| Repeat question rate | Breaking questions asked for already-confirmed dims           | < 5%      |
+| Cache hit rate       | Path cache hits / total queries (Phase 6+)                    | > 40%     |
+| Action success rate  | Actions completed without policy block / actions selected     | > 95%     |
+| User friction score  | Sessions with 3+ rejected candidates (proxy for frustration)  | < 8%      |
+
+Metrics are derived from `sessions.json` and `weak_memory.json` — no
+separate telemetry pipeline is needed. A `chattie --metrics` command
+computes them over the last N sessions (default: 100).
+
+The escalation rate and correction rate are the two numbers that most
+directly indicate whether the graph is fit for a given domain. A rising
+escalation rate signals knowledge gaps; a rising correction rate signals
+over-confident edges that need negative reinforcement. Both are actionable
+without touching code — only knowledge files.
 
 ---
 
@@ -1306,16 +1837,22 @@ texts are already computed; this is purely a new output format path.
 
 ## 19. System Comparison
 
-| Feature                   | This System        | LLM            |
-| ------------------------- | ------------------ | -------------- |
-| Compute requirement       | Tiny (<50 MB RAM)  | Huge (GB+)     |
-| Learning method           | Incremental        | Full retraining|
-| Explainability            | Full path trace    | Limited        |
-| Deterministic             | Yes                | No             |
-| Breaking question logic   | Explicit, labeled  | Implicit       |
-| Path reuse / caching      | Named paths        | None           |
-| Latent concept discovery  | Automatic          | Baked in       |
-| Offline / air-gapped      | Yes                | Rarely         |
+| Feature                   | This System                     | LLM                   |
+| ------------------------- | ------------------------------- | --------------------- |
+| Compute requirement       | Tiny (<50 MB RAM)               | Huge (GB+)            |
+| Learning method           | Incremental                     | Full retraining       |
+| Explainability            | Full path trace                 | Limited               |
+| Deterministic             | Yes                             | No                    |
+| Breaking question logic   | Explicit, labeled               | Implicit              |
+| Path reuse / caching      | Named paths                     | None                  |
+| Latent concept discovery  | Automatic                       | Baked in              |
+| Offline / air-gapped      | Yes                             | Rarely                |
+| Action contracts          | Typed, enumerable, auditable    | Implicit / unchecked  |
+| Goal tracking             | Multi-step, revisable           | Single-turn           |
+| User profile              | Statistical, transparent        | None / opaque         |
+| Escalation                | Structured handoff with context | "I don't know"        |
+| Domain isolation          | Separate persona files          | Entangled weights     |
+| System actions            | Execution layer separated       | Direct / unvalidated  |
 
 ---
 
@@ -1624,6 +2161,158 @@ return on investment before the system crosses into hybrid neural territory.
 The recommended insertion point is after Phase 12 (bias tuning) but before
 any neural work from §20.1 onward — the system should be fully stable and
 generating rich session data before embeddings or classifiers are added.
+
+---
+
+### 20.10 Vertical Deployment Slice — A Telecom Example
+
+The cleanest way to validate the full architecture before building a general
+system is to implement one narrow vertical slice end to end: all layers
+present, all constraints real, scope deliberately small.
+
+#### Recommended first slice: Internet connectivity diagnosis agent
+
+This is the ideal test case. It is bounded (3–5 actions, 2–3 breaking
+question dimensions), high-value (most common telecom support query),
+and exercises every architectural layer simultaneously.
+
+#### Actions defined for this slice
+
+```text
+action: CheckOutageStatus
+  input:  { postcode: String }
+  output: { outage: bool, eta_minutes: Option<u32> }
+
+action: CheckLineStatus
+  input:  { account_id: String }
+  output: { sync_status: String, signal_dbm: f32, error_count: u32 }
+
+action: RebootRouter
+  input:  { device_id: String }
+  output: { initiated: bool }
+
+action: ScheduleEngineer
+  input:  { account_id: String, preferred_date: String }
+  output: { booking_ref: String }
+```
+
+#### Graph nodes for this slice
+
+```text
+connectivity_issue  [Concept]
+  → outage_detected          [Solution → Action: CheckOutageStatus]
+  → line_fault               [Solution → Action: CheckLineStatus]
+  → router_malfunction       [Solution → Action: RebootRouter]
+  → engineer_required        [Solution → Action: ScheduleEngineer → Escalation]
+```
+
+#### Breaking questions
+
+```text
+scope_dimension:
+  prompt: "Does the problem affect all devices on your network, or just one?"
+  branches:
+    all_devices   → line_fault | outage_detected  [path: network_wide_fault]
+    single_device → router_malfunction             [path: device_fault]
+
+duration_dimension:
+  prompt: "Has the connection been dropping intermittently or completely absent?"
+  branches:
+    intermittent  → line_fault          [path: intermittent_fault]
+    absent        → outage_detected     [path: complete_outage]
+```
+
+#### What this slice validates
+
+| Layer                 | What is exercised                                    |
+| --------------------- | ---------------------------------------------------- |
+| Graph reasoning       | Activation, propagation, breaking questions          |
+| Action contracts      | Parameter collection, execution layer separation     |
+| Goal tracking         | Multi-turn diagnosis with context carry-forward      |
+| Escalation            | engineer_required → structured handoff               |
+| User profile          | Novice sees guided steps; Expert sees direct actions |
+| Session + weak memory | Failed diagnoses feed correction loop                |
+| Observability         | Full trace: every action, branch, outcome logged     |
+
+#### Why this slice, not a general system
+
+Building the general system first means deferring every hard integration
+question. This slice forces the action contract boundary, the execution
+layer, real backend calls, and the escalation path to be real and working
+before any scope is added. Everything learned here transfers directly to
+billing, account management, and device provisioning domains — each of
+which is just a different persona graph loaded over the same engine.
+
+---
+
+### 20.11 Event-Driven Core
+
+The current system is entirely **query-driven**: the user sends a message,
+the engine responds, the session waits. This is correct for a CLI tool and
+sufficient for Phase 0–13. But a production service intelligence layer must
+also be **event-aware** — able to initiate a turn in response to a system
+event, not just a user message.
+
+The architectural shift is small: instead of a single entry point
+`(query, session) → response`, the engine gains a second entry point:
+`(event, session) → response`.
+
+```rust
+enum EngineInput {
+    UserQuery(String),
+    SystemEvent(Event),
+}
+
+struct Event {
+    kind:    EventKind,
+    payload: HashMap<String, String>,
+    time:    Timestamp,
+}
+
+enum EventKind {
+    OutageDetected,       // network monitoring detected a fault in user's area
+    ServiceRestored,      // outage cleared
+    BillGenerated,        // new bill available
+    ContractExpiring,     // contract end date approaching
+    DeviceOffline,        // router stopped phoning home
+    ActionCompleted,      // async backend action finished
+    ActionFailed,         // async backend action failed
+}
+```
+
+When an event arrives, the engine activates the corresponding entry node
+in the graph exactly as if the user had typed it — the same breaking
+questions, action contracts, and escalation paths apply. The difference is
+that the system initiates the conversation rather than waiting.
+
+Examples of event-driven behaviour:
+
+```text
+Event: DeviceOffline { device_id: "RTR-0042", account_id: "ACC-001" }
+→ activate: router_malfunction node
+→ confidence: High (event source is authoritative)
+→ ResponseEnvelope: "Your router has gone offline. Shall I run a remote
+                     reboot?" [Reboot / No thanks / Escalate]
+
+Event: ServiceRestored { postcode: "BT1", outage_id: "OUT-99" }
+→ locate open sessions with path label "outage_detected" in same area
+→ for each: update goal to Resolved, send notification
+→ no questions needed — the event is the answer
+
+Event: ActionCompleted { action: "ScheduleEngineer", booking_ref: "ENG-42" }
+→ close the deferred ActionPending session
+→ confirm goal Resolved with booking reference
+```
+
+**Why this matters:** the difference between a chatbot and a service
+intelligence layer is exactly this. A chatbot waits to be asked. A service
+layer knows what is happening and speaks first — but only when it has
+something real and actionable to say, sourced from the same typed action
+contracts and policy engine that govern every user-initiated flow.
+
+Events are persisted to an `events.json` log. Unprocessed events (e.g.
+the user's session was closed before the async action completed) are queued
+and delivered at the start of the next session.
 
 ---
 
