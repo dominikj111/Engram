@@ -11,6 +11,12 @@ not as stored text.
 
 ## What Engram is
 
+Engram is **symbolic AI** — knowledge is explicit, structured, and
+inspectable, not distributed across opaque weights. This is a deliberate
+choice, not a limitation. For bounded domains it is the right architecture:
+every decision is auditable, every weight is named, and the system improves
+without retraining.
+
 A deterministic reasoning kernel. Instead of predicting answers statistically,
 `engram` navigates a directed graph of concepts, asks targeted **breaking
 questions** (targeted clarifying questions that partition the solution space)
@@ -83,7 +89,18 @@ differential privacy: the signal is the graph change, not the event. Product
 analytics without telemetry pipelines; local-first apps contributing to a
 global knowledge pool without central data collection.
 
-[docs/use_cases.md](docs/use_cases.md) documents all 15 deployment contexts.
+**MCP server — knowledge database for LLM agents** — today's LLMs carry
+memory in context windows (resets every conversation) or flat files (static,
+unstructured). Engram exposed as an MCP tool gives any LLM agent access to
+persistent, confidence-weighted, self-improving knowledge accumulated across
+thousands of sessions. The LLM calls `engram.query()` mid-reasoning and
+receives a typed reasoning path — confidence score, ruled-out candidates,
+resolved dimensions — not a text chunk. Multiple agents sharing one Engram
+instance share the *graph* (compressed patterns), never raw conversations.
+The graph learns from every LLM-confirmed answer, so queries that initially
+required model reasoning eventually resolve from Engram alone.
+
+[docs/use_cases.md](docs/use_cases.md) documents all 16 deployment contexts.
 
 ---
 

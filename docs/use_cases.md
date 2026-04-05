@@ -524,11 +524,94 @@ The system is a self-improving cost optimizer.
 
 ---
 
+## 16. MCP Server — Engram as a Knowledge Database for LLM Agents
+
+Today's LLMs carry memory in two ways: the context window (resets every
+conversation) and file-based storage (flat, unstructured, manually managed).
+Neither accumulates knowledge across sessions. Neither learns from confirmed
+outcomes. Neither provides structured, confidence-weighted recall.
+
+Engram as an MCP server inverts the relationship from §15. In §15, Engram
+escalates to an LLM when it cannot resolve a query. Here, the **LLM calls
+Engram as a tool** — querying the graph mid-reasoning to retrieve structured
+knowledge the model itself does not carry.
+
+```text
+LLM reasoning step
+  │
+  └── tool call: engram.query("auth timeout pattern")
+        │
+        ▼
+        returns: {
+          path: "error=timeout + service=auth → CheckConnectionPool",
+          confidence: 0.91,
+          confirmed_n: 34,
+          ruled_out: ["ScaleReplicas (confidence: 0.31)"],
+          breaking_questions_resolved: ["scope_dimension", "load_dimension"]
+        }
+        │
+        ▼
+  LLM incorporates structured context — typed result, not a raw string
+```
+
+### Why this is different from RAG
+
+RAG retrieves text chunks by vector similarity — the LLM gets a paragraph
+that might contain the answer. Engram returns a **reasoning path**:
+
+| | RAG | Engram MCP |
+| --- | --- | --- |
+| What is returned | Text chunks ranked by similarity | Typed path with confidence and ruled-out candidates |
+| Why this answer | Unknown — similarity score only | Explicit: N confirmed sessions, these dimensions resolved |
+| Staleness signal | None | Edge weight decay — low-confidence paths are flagged |
+| Learning from LLM use | None | LLM-confirmed answers reinforce the graph |
+| Attribution | Retrieves source documents | Structurally absent — patterns only |
+
+### Shared memory across LLM agents
+
+Multiple LLM agents pointing at the same Engram instance share the graph —
+accumulated patterns from thousands of sessions — without sharing raw
+conversations. Each agent gets the benefit of every session any agent
+contributed to. The structural privacy property holds: agents share
+*what was confirmed as correct*, never *who said what*.
+
+This is the missing layer in the current LLM memory stack:
+
+```text
+Current LLM memory:
+  context window     — resets each conversation
+  file storage       — flat, unstructured, manually curated
+
+With Engram MCP:
+  context window     — resets each conversation
+  Engram graph       — persistent, structured, self-improving, confidence-weighted
+  file storage       — raw content when needed
+```
+
+### The graph learns from LLM use
+
+When an LLM agent calls Engram, reasons with the result, and the user
+confirms the answer — that outcome feeds back into the graph as a session,
+reinforcing the path. The LLM teaches the graph over time. Queries that
+initially required LLM reasoning eventually resolve from the graph alone.
+
+### Architectural requirements
+
+- MCP server wrapper around the Engram query engine — thin adapter, engine unchanged
+- `engram.query(text)` tool: returns path, confidence, ruled-out candidates
+- `engram.confirm(session_id, outcome)` tool: feeds result back into reinforcement
+- `engram.explain(session_id)` tool: returns full reasoning trace for the LLM to cite
+- Multiple Engram instances (specialist graphs) exposed as separate MCP tools,
+  allowing the LLM to route to the right domain knowledge explicitly
+
+---
+
 ## Summary Table
 
 | # | Use Case | Key Benefit | Priority | Relevant Sections |
 | --- | --- | --- | --- | --- |
 | 15 | **LLM agent mesh / cost optimizer** | 70-80% of bounded-domain queries handled free; LLM only sees novel cases | **Primary focus** | §3.4, §20.1–§20.5 |
+| 16 | **MCP server — LLM knowledge database** | Persistent, confidence-weighted, self-improving memory for LLM agents via MCP | **Primary focus** | §8–§11, §20.8 |
 | 14 | Hierarchical distributed aggregation | Structural differential privacy; graph deltas not raw events | Long-term | §20.7 |
 | 6 | Incident post-mortem distillation | Self-organising runbook from confirmed resolutions | Enabled by §15 | §8, §9 |
 | 7 | New engineer onboarding | Self-improving knowledge base that outlasts any wiki | Enabled by §15 | §8, §11 |
