@@ -1,5 +1,7 @@
 # Engram
 
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 > *Engrams are defined as the physical changes in brain state induced by an
 > event, serving as the memory trace.*
 
