@@ -53,6 +53,34 @@ $$c' = c - \beta \cdot c$$
 The symmetric formula ensures weights decay proportionally, preventing
 collapse to zero.
 
+### 9.2.1 Confidence as a Separate Dimension
+
+`weight` and `confidence` serve different purposes and must not be conflated:
+
+- **weight** — encodes path frequency: how often this edge was traversed
+- **confidence** — encodes reliability: `f(sample_size, variance)` over outcomes
+
+A high-weight edge reached by many sessions with inconsistent outcomes should
+have low confidence. A low-weight edge reached by few sessions with unanimous
+confirmation should have high confidence.
+
+Confidence is computed as:
+
+$$c = \frac{n_{\text{confirmed}}}{n_{\text{confirmed}} + n_{\text{rejected}} + 1} \cdot \left(1 - \frac{1}{1 + n_{\text{total}}}\right)$$
+
+The second factor suppresses confidence on edges with very few sessions,
+preventing early wrong reinforcement from locking in permanent bias.
+
+Additionally, edge confidence decays slowly over time when no new sessions
+traverse it — preventing stale high-confidence paths from dominating a domain
+that has evolved:
+
+$$c' = c \cdot \delta \quad \text{(applied periodically, default } \delta = 0.99 \text{)}$$
+
+Weight does not decay — frequency is a historical fact. Only confidence decays,
+reflecting reduced certainty about correctness when a path has not been
+recently validated.
+
 ### 9.3 Path-Level Reinforcement
 
 When a named path is confirmed, all edges along it receive a reduced
@@ -85,6 +113,13 @@ that $A$ and $B$ almost always appear together.
 
 When a group of nodes $\{A, B, C, \ldots\}$ all share pairwise similarity
 above a threshold $\theta_L = 0.65$:
+
+Before creation, the system computes a **predictive gain** for the candidate
+latent node: would introducing $L$ reduce the average number of breaking
+questions needed to reach a solution along the affected paths? If
+$\Delta Q_{\text{avg}} \leq 0$ — the node adds no disambiguation value — it
+is rejected regardless of co-occurrence score. This prevents graph bloat from
+nodes that capture correlation without improving routing.
 
 1. Create a new `Latent` node $L$ with an auto-generated label
 2. Add edges $A \to L$, $B \to L$, $C \to L$ with initial weight $0.5$
@@ -123,6 +158,24 @@ Incorrect or uncertain answers are stored rather than discarded.
   "correction": null
 }
 ```
+
+### 11.1.1 Expiry Policy
+
+Weak memory entries that are never corrected become noise. Entries expire
+under two conditions:
+
+- **Age expiry:** entry has not been accessed or updated in 90 days
+- **Supersession:** a high-confidence path now covers the same token set that
+  triggered the weak answer — the graph has learned what the weak memory was
+  waiting to teach
+
+Expired entries move to status `"expired"` and are excluded from matching.
+They are retained in the file for audit purposes but do not participate in
+promotion or reinforcement.
+
+Similar failure patterns are clustered before expiry: if five expired entries
+share the same attempted path, that path receives a mild negative reinforcement
+signal even without an explicit user correction.
 
 ### 11.2 Promotion to Main Graph
 
