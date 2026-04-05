@@ -1,14 +1,46 @@
-# chattie
+# Engram
 
-A deterministic conversational reasoning kernel — designed to be the
-explicit, auditable, fallback-safe layer inside larger orchestration systems.
+> *Engrams are defined as the physical changes in brain state induced by an
+> event, serving as the memory trace.*
 
-Instead of predicting answers statistically, `chattie` navigates a directed
-graph of concepts, asks targeted **breaking questions** to resolve ambiguity,
-reinforces correct reasoning paths through session feedback, and emits typed
-**action contracts** that a separate execution layer validates and runs.
-It operates entirely offline, fits under 50 MB, and produces a full reasoning
-trace for every decision.
+---
+
+## What Engram is
+
+A deterministic reasoning kernel. Instead of predicting answers statistically,
+`engram` navigates a directed graph of concepts, asks targeted **breaking
+questions** to resolve ambiguity, reinforces correct reasoning paths through
+session feedback, and emits typed **action contracts** that a separate
+execution layer validates and runs.
+
+Small LLMs, prompt caching, and fine-tuned models already handle many
+"reduce cost for simple queries" scenarios well. Engram is not that.
+It is designed for the cases where those solutions fall short:
+
+| Requirement | Small LLM / fine-tuned model | Engram |
+| --- | --- | --- |
+| Same input → guaranteed same output | No — stochastic by design | Yes — deterministic graph traversal |
+| Full reasoning trace, auditable to each step | No | Yes — every node and edge is named |
+| Runs fully offline, no runtime dependency | Needs runtime / server | Yes — single binary, no network |
+| Improves from session feedback without retraining | No — requires new fine-tune | Yes — edge weights update in real time |
+| Stores patterns, never raw content | Depends on deployment | Structural — raw data never exists in transmittable form |
+| Domain knowledge independently ownable per team | No — entangled in weights | Yes — separate graph files, swappable |
+
+These properties combine in regulated, safety-critical, or air-gapped
+environments where an LLM of any size is either not permitted, not auditable,
+or not stable enough. They also combine in the LLM agent mesh pattern: Engram
+as the cheap deterministic first pass, escalating to an LLM only when the
+graph genuinely cannot resolve the query.
+
+---
+
+## Origin
+
+The name reflects the architecture directly. An engram is the physical trace
+a memory leaves in neural tissue — the brain state change induced by an event.
+Here: edge weight updates are the physical changes, resolved sessions are the
+events, the graph is the memory trace. Knowledge accumulates structurally, not
+as stored text.
 
 ---
 
@@ -113,8 +145,8 @@ See [`docs/proposal.md`](docs/proposal.md) for the full design and 13-phase road
 
 ```sh
 # clone
-git clone https://github.com/your-username/chattie.git
-cd chattie/app
+git clone https://github.com/your-username/engram.git
+cd engram/app
 
 # build
 cargo build
@@ -128,7 +160,7 @@ cargo run
 ## Project Layout
 
 ```text
-chattie/
+engram/
   app/              — main application source
     src/main.rs
     Cargo.toml
@@ -145,14 +177,14 @@ As the project progresses, a `knowledge/` directory will appear alongside
 ## Planned CLI
 
 ```sh
-chattie                          # interactive loop
-chattie "why rust borrow error"  # single query
-chattie --explain "..."          # show full reasoning path
-chattie --history 10             # last 10 sessions
-chattie --audit                  # graph health report
-chattie --weak                   # list unresolved uncertain answers
-chattie --latent                 # list auto-discovered concept nodes
-chattie --goals                  # show open and recent goals
+engram                          # interactive loop
+engram "why rust borrow error"  # single query
+engram --explain "..."          # show full reasoning path
+engram --history 10             # last 10 sessions
+engram --audit                  # graph health report
+engram --weak                   # list unresolved uncertain answers
+engram --latent                 # list auto-discovered concept nodes
+engram --goals                  # show open and recent goals
 ```
 
 ---
@@ -213,9 +245,10 @@ persona graph files.
 
 ---
 
-## Prior Art and Influences
+## Influences
 
 Spreading activation (Collins & Loftus 1975), Bayesian Knowledge Tracing
-(Corbett & Anderson 1994), ConceptNet, and task-oriented dialogue systems.
-Not a clone of any of them — a deliberate combination shaped around the
-constraints of a fast offline CLI tool.
+(Corbett & Anderson 1994), ConceptNet, task-oriented dialogue systems, and
+sparse Mixture of Experts architectures. Not a clone of any of them — a
+deliberate combination shaped by the hard constraints: deterministic output,
+full auditability, offline operation, no retraining cycle.

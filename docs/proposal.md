@@ -1,14 +1,33 @@
-# Proposal: Context Graph Self-Learning CLI Chatbot
+# Proposal: Engram — Deterministic Reasoning Kernel
 
 **Status:** Draft v1.2  
-**Goal:** A lightweight, deterministic, self-improving CLI chatbot with a context graph, breaking question decomposition, and path labeling.  
+**Goal:** A lightweight, deterministic, self-improving reasoning kernel — sparse attention over a knowledge graph, without the GPU. Breaking question decomposition, path labeling, and incremental reinforcement learning from confirmed sessions.  
 **Constraints:** <100 MB memory, fully explainable, incremental learning, no external model dependency.
 
 ---
 
 ## 1. Objective
 
-Design a **lightweight conversational reasoning system** that:
+### 1.1 Motivation
+
+Large language models are remarkable — and enormous. A typical deployment
+consumes tens of gigabytes of weights, requires a GPU or a remote API call,
+and re-reasons from scratch on every query. For many real-world use cases this
+is unnecessary: human vocabulary for recurring problems is finite and
+repetitive. The same questions get asked dozens of times — the same error, the
+same workflow, the same diagnosis path. A system that has seen a question
+resolved correctly once does not need billions of parameters to handle it the
+second time.
+
+Engram was designed around this observation. For bounded domains, a learned
+graph under 100 MB handles the majority of queries offline in microseconds —
+and improves automatically from every resolved session. The LLM remains
+available for genuinely novel cases; it just stops being the default path for
+everything.
+
+### 1.2 Design Goals
+
+Design a **lightweight deterministic reasoning kernel** that:
 
 - runs as a **CLI application**
 - navigates a **weighted context graph** to answer questions
@@ -54,6 +73,25 @@ Path Selection
 ```
 
 The key principle: every step of the reasoning is **explicit and auditable**.
+
+---
+
+## 2.5 Target Use Cases
+
+A full description of deployment contexts is maintained in [use_cases.md](use_cases.md).
+The five primary use cases are summarised here:
+
+| Use Case | Key Benefit |
+| --- | --- |
+| **Team knowledge distillation** | Privacy-preserving collective memory — stores reasoning paths, never attribution |
+| **Industrial domain agent** | Deterministic, auditable, offline-capable vertical deployment |
+| **Voice assistant runtime** | Surface-agnostic `ResponseEnvelope`, numbered-choice breaking questions |
+| **Multi-command orchestrator** | Policy-gated action dispatch with event-driven initiation |
+| **Compressed chat memory** | Sub-linear growth, high signal-to-noise, no raw dialog stored |
+
+The unifying property: the graph stores *what was confirmed as correct*, not *who said what
+or when*. This makes the system suitable wherever factual substrate matters more than
+conversational record.
 
 ---
 
@@ -353,6 +391,42 @@ State after one propagation step:
 mutable_reference_conflict:  0.90 × 0.81 × 0.85 = 0.620
 lifetime_mismatch:           0.90 × 0.63 × 0.85 = 0.482
 ```
+
+### 4.3.1 Activation Propagation as a Degenerate Attention Mechanism
+
+The propagation formula is structurally equivalent to a single-head sparse attention step:
+
+```text
+Transformer attention (dense, all-pairs):
+  score(q, k) = QKᵀ / √d  →  softmax  →  weighted sum of values
+
+Engram activation propagation (sparse, graph-constrained):
+  a_target = a_source × w × λ  →  ranking  →  top candidate nodes
+```
+
+Both operations: take a query signal, route it through a learned weight matrix, produce
+a weighted selection over candidates. The differences are structural, not fundamental:
+
+| Property | Transformer attention | Engram propagation |
+| --- | --- | --- |
+| Weight matrix | Dense (all-pairs) | Sparse (edges only) |
+| Weight learning | Backpropagation | Session reinforcement |
+| Output | Probability distribution | Ranked discrete candidates |
+| Determinism | Stochastic (softmax + sampling) | Deterministic |
+| Interpretability | Opaque | Every weight is a named, inspectable edge |
+
+The edge weight `w` *is* the attention weight. It was designed from a knowledge graph
+perspective, but the mathematical role is identical.
+
+**Implication for specialist graphs:** Each specialist graph trained on different session
+data develops different edge weight distributions — the auth graph becomes highly sensitive
+to auth tokens, the billing graph to billing tokens. Different specialists implement
+different attention patterns over the same input vocabulary. This emerges automatically
+from training data, without any explicit sensitivity configuration.
+
+This is a computationally reasonable model of domain expertise: a specialist's knowledge
+is encoded as a particular sparse attention pattern over concepts, shaped by what they
+have confirmed as correct in their domain.
 
 ### 4.4 Candidate Solution Ranking
 
@@ -921,9 +995,9 @@ the authenticated user identifier, enabling cross-channel profile continuity.
 ### 12.1 Interactive Loop
 
 ```
-$ chattie
+$ engram
 
-chattie> why rust borrow error?
+engram> why rust borrow error?
 
 [activation] borrow_checker: 0.90, compile_error: 0.60
 [ambiguous]  mutable_reference_conflict: 0.82, lifetime_mismatch: 0.70
@@ -944,7 +1018,7 @@ Was this helpful? [y/n] y
 ### 12.2 Single Query Mode
 
 ```
-$ chattie "why rust borrow error?"
+$ engram "why rust borrow error?"
 
 Possible cause:  multiple mutable references (score: 0.82)
 Path:            rust_ownership_violation
@@ -954,7 +1028,7 @@ Confidence:      0.75
 ### 12.3 Explanation Mode
 
 ```
-$ chattie --explain "why rust borrow error?"
+$ engram --explain "why rust borrow error?"
 
 Reasoning path:
   rust  [domain: rust]
@@ -1209,7 +1283,7 @@ solving problems for users. These are the metrics that matter in production.
 | User friction score  | Sessions with 3+ rejected candidates (proxy for frustration)  | < 8%      |
 
 Metrics are derived from `sessions.json` and `weak_memory.json` — no
-separate telemetry pipeline is needed. A `chattie --metrics` command
+separate telemetry pipeline is needed. A `engram --metrics` command
 computes them over the last N sessions (default: 100).
 
 The escalation rate and correction rate are the two numbers that most
@@ -1242,14 +1316,14 @@ Deliverables:
 - `Node`, `Edge`, `ContextPath`, `BreakingQuestion`, `Branch` structs defined
 - `knowledge/` directory layout established; loader reads JSON files on startup
 - CLI parses arguments: interactive mode vs single-query mode vs `--explain`
-- `chattie` binary runs, prints a greeting, and exits cleanly
+- `engram` binary runs, prints a greeting, and exits cleanly
 
 Checkpoint:
 
 ```
-$ chattie
-chattie v0.1 — knowledge loaded: 0 nodes, 0 edges
-chattie>
+$ engram
+engram v0.1 — knowledge loaded: 0 nodes, 0 edges
+engram>
 ```
 
 What this phase gives you: a buildable project with a clear structure you
@@ -1274,11 +1348,11 @@ Deliverables:
 Checkpoint:
 
 ```
-$ chattie "mutable reference"
+$ engram "mutable reference"
 Answer: Only one mutable reference is permitted at a time in the same scope.
 Path:   direct match → mutable_reference_conflict
 
-$ chattie --explain "mutable reference"
+$ engram --explain "mutable reference"
 Token match:  mutable_reference  →  Node #3 [Solution]
 Answer:  Only one mutable reference is permitted at a time in the same scope.
 ```
@@ -1306,7 +1380,7 @@ Deliverables:
 Checkpoint:
 
 ```
-$ chattie --explain "why rust borrow error"
+$ engram --explain "why rust borrow error"
 
 Activation trace:
   rust          0.45  [concept]
@@ -1341,7 +1415,7 @@ Deliverables:
 Checkpoint:
 
 ```
-chattie> why rust borrow error
+engram> why rust borrow error
 
 [score below threshold]
 ? Is the error about multiple mutable references?  [ownership_dimension]
@@ -1374,7 +1448,7 @@ Deliverables:
 Checkpoint:
 
 ```
-chattie> deadlock in tokio
+engram> deadlock in tokio
 
 [ambiguous: tokio_deadlock 0.71, database_deadlock 0.69]
 ? Does the deadlock occur inside an async runtime?  [concurrency_dimension]
@@ -1411,7 +1485,7 @@ Deliverables:
 Checkpoint:
 
 ```
-$ chattie --explain "rust borrow error"
+$ engram --explain "rust borrow error"
 
 Path label:  rust_ownership_violation
 Tags:        ownership, mutation, single_threaded, rust
@@ -1448,7 +1522,7 @@ Deliverables:
 Checkpoint:
 
 ```
-chattie> rust borrow error
+engram> rust borrow error
 
 [cached path match: rust_ownership_violation  overlap: 0.88]
 Proposed: Only one mutable reference is permitted at a time.  [y/n]
@@ -1473,12 +1547,12 @@ Deliverables:
 - Record: input tokens, path labels traversed, breaking questions asked,
   branches taken, final outcome (`confirmed` / `rejected` / `abandoned`)
 - `sessions.json` is append-only; never mutated retroactively
-- CLI command `chattie --history` prints the last N sessions in summary form
+- CLI command `engram --history` prints the last N sessions in summary form
 
 Checkpoint:
 
 ```
-$ chattie --history 3
+$ engram --history 3
 
 2026-03-06-001  rust_ownership_violation       confirmed   questions: [ownership_dimension]
 2026-03-06-002  tokio_deadlock_async           confirmed   questions: [concurrency_dimension]
@@ -1512,7 +1586,7 @@ Checkpoint:
 After 5 confirmed sessions on `rust_ownership_violation`:
 
 ```
-$ chattie --explain "borrow checker"
+$ engram --explain "borrow checker"
 
 Edge borrow_checker → mutable_reference_conflict
   weight:  0.81 → 0.91  (reinforced ×5)
@@ -1533,8 +1607,8 @@ Deliverables:
 
 - When a session ends as `rejected` or `abandoned`, write a weak memory entry
   with the attempted path and solution
-- CLI command `chattie --weak` lists all unresolved weak entries
-- When a user provides a correction (`chattie --correct wm-0042 "ownership"`),
+- CLI command `engram --weak` lists all unresolved weak entries
+- When a user provides a correction (`engram --correct wm-0042 "ownership"`),
   the system promotes the corrected path and applies negative reinforcement
   to the incorrect one
 - Resolved entries are archived (status set to `"resolved"`)
@@ -1542,12 +1616,12 @@ Deliverables:
 Checkpoint:
 
 ```
-$ chattie --weak
+$ engram --weak
 
 wm-0042  [uncertain]  "rust borrow fail"  →  attempted: rust_lifetime_scope
 wm-0051  [rejected]   "tokio hang"        →  attempted: thread_deadlock
 
-$ chattie --correct wm-0042 "ownership"
+$ engram --correct wm-0042 "ownership"
 Resolved: wm-0042
   + reinforced: rust_ownership_violation
   - penalized:  rust_lifetime_scope
@@ -1573,13 +1647,13 @@ Deliverables:
 - When a group's pairwise similarity exceeds $\theta_L = 0.65$, create a
   `Latent` node with tag intersection and connecting edges at weight 0.5
 - Flag new latent nodes for human review in `--explain` output
-- CLI command `chattie --latent` lists all discovered latent nodes with their
+- CLI command `engram --latent` lists all discovered latent nodes with their
   source groups
 
 Checkpoint:
 
 ```
-$ chattie --latent
+$ engram --latent
 
 deadlock  [latent]
   discovered from: tokio_deadlock, database_deadlock, thread_deadlock
@@ -1611,12 +1685,12 @@ Deliverables:
 - At counter = 3: promote to active, assign tags from co-occurring confirmed
   nodes, add to matching paths
 - `--explain` marks unconfirmed nodes with `[provisional]`
-- `chattie --provisional` lists all pending nodes with confirmation counts
+- `engram --provisional` lists all pending nodes with confirmation counts
 
 Checkpoint:
 
 ```
-chattie> vectorization in rust
+engram> vectorization in rust
 
 [new token] "vectorization" → provisional node created
 [provisional] programming → vectorization (weight: 0.30, confidence: 0.10)
@@ -1642,7 +1716,7 @@ Deliverables:
 - Add exploration noise $\epsilon = 0.02$ to activation scores at propagation
   time: low-weight edges occasionally participate
 - Add `--epsilon` flag to override the noise level at runtime
-- Add a **bias audit**: `chattie --audit` shows the top 10 most dominant
+- Add a **bias audit**: `engram --audit` shows the top 10 most dominant
   edges and flags any that have not been exercised in the last N sessions
   (configurable staleness window, default: 50 sessions)
 - Stale-dominant edges receive a small passive decay per session
@@ -1651,7 +1725,7 @@ Deliverables:
 Checkpoint:
 
 ```
-$ chattie --audit
+$ engram --audit
 
 Top dominant edges:
   borrow_checker → mutable_reference_conflict  weight: 0.93  last used: session 3  ✓ active
@@ -1959,6 +2033,15 @@ the neural shortcut is derivative.
 
 ### 20.5 Persona Graphs — Separable Domain Knowledge
 
+> **Architectural status:** Originally listed as a future direction. Elevated to
+> **core architectural pattern** because it is load-bearing for the LLM pre-memory
+> and agent mesh use case (see [use_cases.md §15](use_cases.md#15-llm-pre-memory-preprocessor-and-agent-mesh)).
+> A single monolithic graph cannot serve that use case correctly — confidence scores
+> lose domain-local meaning, cross-domain edge weights interfere, and independent
+> team ownership becomes impossible. The persona graph fleet *is* the architecture
+> for multi-domain deployments. Design decisions from Phase 5 onward should treat
+> this as a first-class constraint.
+
 This is the most architecturally significant direction.
 
 **The LLM problem:** an LLM contains all domain knowledge, all problem patterns,
@@ -2015,6 +2098,49 @@ selects them with a transparent routing rule. The reasoning architecture
 proposed here is in some ways a structural implementation of what the
 Anthropic persona selection model describes as an emergent property of LLMs
 — but made explicit, auditable, and composable by design.
+
+#### 20.5.1 The Swarm as Sparse Mixture of Experts
+
+A fleet of specialist Engram graphs coordinated by a router agent is
+structurally equivalent to a **sparse Mixture of Experts** architecture —
+the same design used inside GPT-4, Mixtral, and most frontier LLMs:
+
+```text
+Neural sparse MoE:                  Engram specialist swarm:
+──────────────────                  ─────────────────────────
+Router selects k of N experts       Router agent selects specialist graph(s)
+Only selected experts activate      Only matched specialist processes query
+Total parameters: very large        Total knowledge: large (across all graphs)
+Compute per token: small (k/N)      Compute per query: small (1-2 specialists)
+Routing: learned, opaque            Routing: deterministic, inspectable
+Expert weight updates: backprop     Expert updates: edge reinforcement
+Expert semantics: unknown           Expert semantics: explicit domain labels
+```
+
+The resource efficiency argument is identical: the system carries a large total
+knowledge base but activates only the relevant slice per query. The fundamental
+difference is that Engram's experts are **explicit, named, independently
+deployable graphs** rather than anonymous weight matrices — they can be inspected,
+replaced, versioned, and owned by different teams.
+
+**Recursive composition:** A Engram node operating as a pure router runs the same
+activation propagation over a *routing graph* (where nodes are specialist agents
+rather than domain concepts) and emits a dispatch decision. The routing graph learns
+which specialist resolves which query signature via the same reinforcement mechanism
+as any other graph. This is a clean recursive structure: the same engine, at every
+layer of the hierarchy. Depth is determined by domain complexity, not architectural
+constraint.
+
+**The LLM crossover point:** As the specialist count N grows and each graph
+accumulates session data, the swarm converges toward LLM-level coverage *for its
+known domains*. It never closes the gap on genuinely novel cross-domain reasoning —
+that boundary defines when escalation to an LLM is appropriate. The swarm and the
+LLM are complementary, not competing: the swarm handles the well-trodden paths
+cheaply and deterministically; the LLM handles the novel cases and teaches the swarm
+what to encode next.
+
+See [use_cases.md §15](use_cases.md#15-llm-pre-memory-preprocessor-and-agent-mesh)
+for the deployment implications and cost profile.
 
 ---
 

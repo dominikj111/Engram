@@ -6,6 +6,25 @@ jump to directly.
 
 ---
 
+## Motivation & Objective (§1)
+
+| Section | Purpose | Line |
+| ------- | ------- | ---- |
+| §1.1 Motivation | Origin story — LLMs are too large for repetitive bounded domains; humans ask the same questions repeatedly | 9 |
+| §1.2 Design Goals | What the system is designed to do | 25 |
+
+---
+
+## Target Use Cases (§2.5)
+
+| Section | Purpose | Line |
+| ------- | ------- | ---- |
+| §2.5 Target Use Cases | Summary table of 5 deployment contexts; full detail in [use_cases.md](use_cases.md) | 60 |
+
+See also: [use_cases.md](use_cases.md) — standalone document covering team knowledge distillation, industrial agents, voice assistant runtime, multi-command orchestration, and compressed chat memory.
+
+---
+
 ## Core Data Structures (§3)
 
 | Section | Purpose | Line |
@@ -26,6 +45,7 @@ jump to directly.
 | §4.1 Tokenization | Stop-word removal, stemming, alias map | 321 |
 | §4.2 Context Activation | Matched tokens → initial activation scores on nodes | 331 |
 | §4.3 Activation Propagation | Forward spread through edges: `a_target = a_source × w × λ` | 341 |
+| §4.3.1 Propagation as Attention | Formal equivalence to sparse attention; specialist graphs as domain-specific attention patterns | 369 |
 | §4.4 Candidate Ranking | Leaf `Solution` nodes ranked by accumulated activation | 357 |
 | §4.5 Confidence State Machine | `ConfidenceLevel` enum (High/Medium/Low/Unknown) with explicit behaviour per state | 370 |
 
@@ -117,7 +137,8 @@ jump to directly.
 | §20.2 Neural Re-ranker | Shallow MLP reorders graph-produced candidates; never overrides the graph | 1895 |
 | §20.3 Intent Classifier | Routes query to correct domain persona before activation | 1916 |
 | §20.4 Graph Distillation | Distil routing logic into tiny neural fast-path; graph remains authoritative | 1938 |
-| §20.5 Persona Graphs | Separable domain knowledge files; inspectable, swappable, composable | 1960 |
+| §20.5 Persona Graphs | Separable domain knowledge files; inspectable, swappable, composable. **Elevated to core architectural pattern.** | 1960 |
+| §20.5.1 Swarm as Sparse MoE | Formal equivalence to sparse Mixture of Experts; recursive router composition; LLM crossover point | — |
 | §20.6 NL Answer Formatter | Optional tiny model for natural phrasing; `--raw` disables it | 2021 |
 | §20.7 Distributed Sharing | Export / merge persona graphs; weighted-average merge strategy | 2038 |
 | §20.8 Network Service | Extract engine as library; add HTTP + Discord/Slack/Teams/Web adapters | 2057 |
