@@ -13,9 +13,10 @@ not as stored text.
 
 A deterministic reasoning kernel. Instead of predicting answers statistically,
 `engram` navigates a directed graph of concepts, asks targeted **breaking
-questions** to resolve ambiguity, reinforces correct reasoning paths through
-session feedback, and emits typed **action contracts** that a separate
-execution layer validates and runs.
+questions** (targeted clarifying questions that partition the solution space)
+to resolve ambiguity, reinforces correct reasoning paths through session
+feedback, and emits typed **action contracts** that a separate execution layer
+validates and runs.
 
 The design makes specific trade-offs that most AI tooling deliberately avoids:
 
