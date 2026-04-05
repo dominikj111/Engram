@@ -204,6 +204,40 @@ cargo build
 cargo run
 ```
 
+```text
+engram v0.1.0 — knowledge loaded: 0 nodes, 0 edges
+engram> Hello
+[phase 0] reasoning not yet implemented
+query received: Hello
+engram> exit
+Goodbye.
+```
+
+The reasoning is a stub at Phase 0 — that is expected. The CLI surface,
+data structures, file I/O, and knowledge directory layout are already in
+place. The subcommands reflect the full architecture:
+
+```text
+$ cargo run -- --help
+
+Usage: engram [OPTIONS] [QUERY] [COMMAND]
+
+Commands:
+  history      Show the last N sessions from history
+  weak         List all unresolved weak memory entries
+  latent       List all discovered latent nodes
+  provisional  List all provisional (unconfirmed) nodes
+  audit        Show bias audit: dominant edges and staleness report
+
+Options:
+  --explain           Print the full reasoning trace for each answer
+  --knowledge-dir     Path to the knowledge directory (default: ./knowledge)
+```
+
+`weak`, `latent`, `provisional`, and `audit` are stubs today — each one
+maps to a phase in [docs/roadmap.md](docs/roadmap.md). The architecture is
+built to be filled in, not redesigned.
+
 ---
 
 ## Influences
