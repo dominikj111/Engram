@@ -198,8 +198,8 @@ See [docs/roadmap.md](docs/roadmap.md) for all 13 phases and checkpoints.
 **Requirements:** Rust 1.85+ (`rustup` recommended)
 
 ```sh
-git clone https://github.com/your-username/engram.git
-cd engram/app
+git clone https://github.com/dominikj111/Engram.git
+cd Engram/app
 cargo build
 cargo run
 ```

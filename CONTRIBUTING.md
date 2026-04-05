@@ -76,8 +76,8 @@ These are not limitations to work around — they are the design.
 ## Getting started
 
 ```sh
-git clone https://github.com/dominikj111/engram.git
-cd engram/app
+git clone https://github.com/dominikj111/Engram.git
+cd Engram/app
 cargo build
 cargo test
 ```
