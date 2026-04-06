@@ -665,6 +665,49 @@ effort* across all of these, which is a proxy for *where the system resists chan
 
 ---
 
+## 18. Business Logic Engine / Business Process Runner
+
+**The problem:** Business logic rarely lives in one place. Decision rules exist in backend
+services, duplicated on the frontend for responsiveness, partially re-implemented in
+infrastructure configuration, and tested only indirectly through unit tests that cover
+behaviour rather than intent. When the logic drifts between layers, bugs follow.
+
+**What Engram provides:** A single portable artifact that encodes business rules as an
+explicit, auditable graph. Any event — user action, payment webhook, inventory update —
+initiates a session. The graph navigates to an action contract. The execution layer runs
+it. The session closes.
+
+```text
+payment_confirmed event
+  → session: context={order_id, amount, user_tier}
+  → activation → action: SendConfirmationEmail + UpdateInventory
+
+payment_failed event
+  → session: context={failure_code, retry_count}
+  → breaking question: retry_count < 3?
+  → yes → RetryPayment
+  → no  → NotifyUser + FlagForReview
+```
+
+Long-running process state (order status, retry counters) lives in the application
+database — Engram is the rules layer, not the state store. Each business event is its
+own session, a single decision point. This is the right separation of concerns.
+
+**The frontend/backend parity property:** The same graph compiled to WASM runs in the
+browser and natively on the server. The same rules gate UI transitions ("can this user
+proceed to checkout?") without a roundtrip and enforce backend decisions — eliminating
+the class of bugs that comes from business logic drift between layers.
+
+**What makes this more than a rules engine:** The graph self-improves from outcomes.
+Paths that resolve correctly accumulate weight; paths that produce weak memory entries
+decay. Process optimisation becomes automatic rather than a manual audit exercise.
+
+**Architectural fit:** This is §4 Multi-Command Orchestrator applied to business
+processes specifically. No new architecture required — action contracts, the policy
+engine, parameter resolution, and event-driven entry already support this pattern.
+
+---
+
 ## Summary Table
 
 | # | Use Case | Key Benefit | Priority | Relevant Sections |
@@ -685,4 +728,5 @@ effort* across all of these, which is a proxy for *where the system resists chan
 | 4 | Multi-command orchestrator | Policy-gated action dispatch, event-driven initiation | Later | §3.6, §20.11 |
 | 10 | Embedded / offline field diagnostics | <1 MB graph on a device, syncs when connectivity returns | Later | §17, §20.5 |
 | 17 | **Technical debt mapping** | Refactoring priorities ranked by confirmed incident weight, not static analysis; latent coupling revealed | Enabled by §15 | §8–§10 |
+| 18 | Business logic engine | Single portable artifact for business rules; same graph on frontend (WASM) and backend | Later | §3.4, §3.6, §20.11 |
 | 2 | Industrial domain agent | Deterministic, auditable, offline-capable vertical deployment | **Deferred** | §20.10, §3.6 |
