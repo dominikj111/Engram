@@ -276,3 +276,19 @@ built to be filled in, not redesigned.
 Not a clone of any of them — a deliberate combination shaped by the hard
 constraints: deterministic output, full auditability, offline operation, no
 retraining cycle.
+
+---
+
+## Prior Art
+
+Several existing systems overlap with parts of Engram:
+
+| System | What it shares | What it lacks |
+| --- | --- | --- |
+| **Drools / RETE rule engines** | Deterministic, auditable, fires typed actions | No dialogue layer, no graph traversal, salience is hand-tuned not learned |
+| **Rasa** | Task-oriented dialogue, story graphs, slot-filling (breaking question analog) | Stores utterances, requires full retraining, not offline-first |
+| **AIML / Pandorabots** | Deterministic pattern-match dialogue | No weight learning, no graph navigation |
+| **Bayesian belief networks** | Weighted directed graph, deterministic inference | No dialogue layer, no action contracts |
+| **OpenCyc / ResearchCyc** | Closed-world knowledge graph, hard factual boundary, offline | No learning, no dialogue |
+
+The combination that does not exist elsewhere: a dialogue layer with structural privacy (no text stored at any layer), incremental weight learning without retraining, breaking questions as a first-class graph traversal primitive, and a hard knowledge boundary as an architectural guarantee rather than policy. Engram sits at the intersection of expert system, task-oriented dialogue, and reinforcement-learned policy graph — a combination shaped by constraints that existing tools treat as optional.
