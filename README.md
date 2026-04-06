@@ -26,6 +26,14 @@ to resolve ambiguity, reinforces correct reasoning paths through session
 feedback, and emits typed **action contracts** that a separate execution layer
 validates and runs.
 
+At its core: a defined set of contexts and actions. Learning is finding the most
+reliable path from an initial context to the right action. The system discovers
+connections between things already in the graph — it cannot invent new knowledge.
+Factual expansion requires a human to add new nodes and edges. This is intentional:
+the original goal was a dialogue system with a hard domain boundary that stays
+reliably correct within it, rather than a general system that occasionally hallucinates
+outside it.
+
 The design makes specific trade-offs that most AI tooling deliberately avoids:
 
 | Requirement | Small LLM / fine-tuned model | Engram |
