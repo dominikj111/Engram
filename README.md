@@ -73,7 +73,16 @@ into the graph as edge weight updates, never as stored conversation or
 attributed records. Teams accumulate knowledge structurally: incident
 runbooks distilled from resolutions, onboarding paths that outlast any wiki,
 CI/CD triage patterns learned from real failures. Attribution is structurally
-absent — not scrubbed, never recorded. See the section below for detail.
+absent — not scrubbed, never recorded.
+
+The same mechanism produces evidence-based technical debt maps. Component
+nodes accumulate weight proportional to how often they appear in real incident
+paths — not cyclomatic complexity, but confirmed fault frequency. A module
+that appears in 87% of auth-related resolutions is a stronger refactoring
+target than anything static analysis can identify. Latent node discovery
+surfaces hidden coupling between components that co-activate across incidents
+without a documented connection — structural problems the team never
+explicitly named.
 
 **Industrial domain agent** — bounded, high-stakes domains where determinism
 and auditability are regulatory requirements: medical triage routing,
@@ -102,7 +111,7 @@ instance share the *graph* (compressed patterns), never raw conversations.
 The graph learns from every LLM-confirmed answer, so queries that initially
 required model reasoning eventually resolve from Engram alone.
 
-[docs/use_cases.md](docs/use_cases.md) documents all 16 deployment contexts.
+[docs/use_cases.md](docs/use_cases.md) documents all 17 deployment contexts.
 
 ---
 

@@ -606,6 +606,65 @@ initially required LLM reasoning eventually resolve from the graph alone.
 
 ---
 
+## 17. Technical Debt Mapping and Refactoring Prioritisation
+
+**The problem:** Refactoring decisions today are made from intuition ("the auth module
+feels messy") or blunt static analysis metrics (cyclomatic complexity, test coverage,
+churn rate). Neither tells you *which components actually cause problems for users* nor
+*how frequently*. A module can have high complexity and never be touched in an incident.
+Another can be clean by every metric and sit on the critical path of every failure.
+
+**What Engram records:** Every confirmed session reinforces the reasoning path that led
+to the solution. Each node on that path — each component, dimension, or concept that
+was activated — accumulates weight proportional to how often it appears in real incident
+resolutions. After enough sessions, the graph encodes *evidence-based component fault
+frequency*:
+
+```text
+After 40 resolved sessions over 3 months:
+
+auth_module           weight: 0.89  (on the path in 34 of 40 sessions)
+cache_layer           weight: 0.71  (on the path in 22 of 40 sessions)
+payment_service       weight: 0.41  (on the path in 12 of 40 sessions)
+notification_worker   weight: 0.18  (on the path in 4 of 40 sessions)
+```
+
+This is not a static analysis score. It is a ranked list derived from real incidents —
+which components your team actually had to diagnose to resolve real problems.
+The refactoring priority list writes itself.
+
+**Latent node discovery reveals hidden coupling.** When `auth_module`,
+`session_handling`, and `token_refresh` repeatedly co-activate across unrelated
+incidents without a documented connection, the graph surfaces a latent node — probably
+something like `auth_state_lifecycle`. This is a structural problem the team never
+explicitly named, discovered because the graph found the pattern across dozens of
+sessions. Static analysis cannot find this: it requires co-occurrence across runtime
+problem contexts, not import graphs.
+
+**Negative reinforcement tracks what was tried and failed.** When a fix is applied,
+confirmed, then later rejected on a related incident, the path weight decays. A
+component that appears high on the list for wrong reasons will naturally decay as the
+team finds more precise root causes. The ranking self-corrects over time.
+
+**Scope:** this is not limited to bug fixing. Any recurring decision pattern that can
+be confirmed or rejected fits the same model — architecture reviews, dependency upgrade
+decisions, performance investigations. The graph maps *where the team spent diagnostic
+effort* across all of these, which is a proxy for *where the system resists change*.
+
+**Target contexts:**
+
+- Identifying which components to prioritise in a refactoring sprint, ranked by
+  confirmed incident weight rather than code metrics
+- Detecting hidden coupling between components that does not appear in import graphs
+  but co-activates consistently in runtime incidents
+- Building an evidence base for architectural decisions: "we should extract this module
+  because it appears in 87% of auth-related incidents" is a stronger argument than
+  "it has high cyclomatic complexity"
+- Tracking whether a refactoring actually reduced fault frequency — the same component
+  should decline in the ranking after a successful refactor as fewer incidents involve it
+
+---
+
 ## Summary Table
 
 | # | Use Case | Key Benefit | Priority | Relevant Sections |
@@ -625,4 +684,5 @@ initially required LLM reasoning eventually resolve from the graph alone.
 | 3 | Voice assistant runtime | Surface-agnostic `ResponseEnvelope`, numbered-choice breaking questions | Later | §20.8, §3.5 |
 | 4 | Multi-command orchestrator | Policy-gated action dispatch, event-driven initiation | Later | §3.6, §20.11 |
 | 10 | Embedded / offline field diagnostics | <1 MB graph on a device, syncs when connectivity returns | Later | §17, §20.5 |
+| 17 | **Technical debt mapping** | Refactoring priorities ranked by confirmed incident weight, not static analysis; latent coupling revealed | Enabled by §15 | §8–§10 |
 | 2 | Industrial domain agent | Deterministic, auditable, offline-capable vertical deployment | **Deferred** | §20.10, §3.6 |
