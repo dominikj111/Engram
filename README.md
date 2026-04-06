@@ -115,7 +115,13 @@ required model reasoning eventually resolve from Engram alone.
 
 ---
 
-## How the Graph Learns — Anonymity by Design
+## How the Graph Learns — Privacy by Architecture
+
+User input text is discarded at the tokeniser boundary — it never enters any
+storage layer. The tokeniser maps input tokens to node IDs and drops the text.
+Everything downstream — propagation, reinforcement, weak memory, session records
+— operates exclusively on node IDs. This is a structural guarantee, not a
+sanitisation policy: there is no code path by which input text could reach storage.
 
 After each session, Engram updates the graph based on outcome:
 
@@ -132,9 +138,9 @@ Repeated enough times:
   failed paths accumulate in weak memory for later correction
 ```
 
-What the graph stores after each session is the *outcome and the path* —
-not the conversation, not who was involved. After 30 engineers hit the same
-error and confirm the same fix:
+What the graph stores after each session is a node activation pattern and an
+outcome — not words, not who was involved, not what was typed. After 30 engineers
+hit the same error and confirm the same fix:
 
 ```text
 error=timeout + service=auth
@@ -177,7 +183,7 @@ incident response, onboarding, compliance routing, CI/CD triage.
 
 | Document | What it covers |
 | --- | --- |
-| [use_cases.md](docs/use_cases.md) | 15 deployment contexts with strategic priority — start here for the "why" |
+| [use_cases.md](docs/use_cases.md) | 17 deployment contexts with strategic priority — start here for the "why" |
 | [proposal.md](docs/proposal.md) | Design overview, motivation, core concept, and index to all spec files |
 | [architecture.md](docs/architecture.md) | Data structures, query pipeline, activation-as-attention |
 | [disambiguation.md](docs/disambiguation.md) | Breaking questions, path labeling, goal tracking |

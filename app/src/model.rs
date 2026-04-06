@@ -133,14 +133,19 @@ impl std::fmt::Display for WeakMemoryStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeakMemoryEntry {
     pub id: String,
-    pub question: String,
+    /// Node IDs activated when this query was processed.
+    /// Input text is never stored — the activation pattern is sufficient
+    /// to diagnose the failure and connect the correct solution node.
     #[serde(default)]
-    pub tokens: Vec<String>,
+    pub activated_nodes: Vec<u32>,
+    /// Path label of the attempted (and failed) reasoning route. Curated name, not user text.
     pub attempted_path: String,
-    pub attempted_solution: String,
+    /// Solution node that was proposed but rejected. None if session was abandoned.
+    pub attempted_solution_node: Option<u32>,
     pub status: WeakMemoryStatus,
     pub session_id: String,
-    pub correction: Option<String>,
+    /// Correct solution node, populated when a correction is confirmed.
+    pub correction_node: Option<u32>,
 }
 
 // ---------------------------------------------------------------------------
@@ -168,9 +173,12 @@ impl std::fmt::Display for SessionOutcome {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
     pub session_id: String,
+    /// Curated path labels traversed during this session (e.g. "rust_ownership_violation").
     #[serde(default)]
     pub path_labels: Vec<String>,
+    /// IDs of breaking question nodes asked during this session.
+    /// Stores node IDs, not question text or user responses.
     #[serde(default)]
-    pub breaking_questions_asked: Vec<String>,
+    pub breaking_questions_asked: Vec<u32>,
     pub outcome: SessionOutcome,
 }

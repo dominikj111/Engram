@@ -93,6 +93,48 @@ conversational record.
 
 ---
 
+## 2.6 The Input Boundary: Text In, Node IDs Out
+
+User input text crosses the system boundary exactly once: at the tokeniser
+(§4.1). The tokeniser maps tokens to node IDs and discards the text. Nothing
+downstream of the tokeniser holds user-originated strings.
+
+```text
+User input text
+      │
+      ▼  tokenise + normalise
+Node ID activation vector   ← text discarded here
+      │
+      ▼
+Graph navigation, reinforcement, storage — all operate on node IDs only
+```
+
+This is not a sanitisation policy. Sanitisation assumes sensitive content
+might slip through and tries to catch it. This is a structural guarantee:
+there is no pathway by which input text reaches any storage layer, because
+the interface between input processing and the rest of the system is typed
+as node IDs, not strings.
+
+**What is stored per session:**
+
+- Node IDs activated
+- Path labels traversed (curated names from the knowledge graph, not user words)
+- Breaking question node IDs asked
+- Session outcome
+
+**What is never stored:**
+
+- Input text in any form
+- User responses verbatim
+- Tokens derived from input
+- Free-text descriptions of what the user said
+
+**Curated text** — solution node bodies, breaking question prompts, node labels,
+path names — is authored by the knowledge graph maintainer and is not
+user-originated. It does not fall under this constraint.
+
+---
+
 ## 3. Knowledge Representation
 
 ### 3.1 Context Graph
@@ -219,21 +261,25 @@ information already given.
 
 ```rust
 struct EscalationPayload {
-    summary:          String,          // one-line description of the situation
-    detected_goal:    String,          // e.g. "diagnose_connectivity_loss"
-    attempted_paths:  Vec<String>,     // path labels tried and rejected
-    confirmed_facts:  Vec<(String, String)>, // key-value pairs confirmed during session
-    missing_info:     Vec<String>,     // parameters never resolved
-    confidence:       f32,             // engine confidence at time of escalation
-    session_id:       String,          // link to full session record
+    // summary is rendered at handoff time from node context — not stored as user-originated text
+    detected_goal_node: u32,              // node ID of the inferred goal concept
+    attempted_paths:    Vec<String>,      // path labels tried and rejected
+    confirmed_facts:    Vec<(String, String)>, // key-value pairs confirmed during session
+    missing_info:       Vec<String>,      // parameters never resolved
+    confidence:         f32,              // engine confidence at time of escalation
+    session_id:         String,           // link to full session record
 }
 ```
+
+`detected_goal_node` is a node ID from the knowledge graph — a curated concept label
+like `diagnose_connectivity_loss`, not a free-text description of what the user said.
+The human-readable `summary` line shown at handoff is rendered by the adapter from
+the node label and confirmed facts; it is never stored in the payload itself.
 
 Example escalation payload handed to a human agent:
 
 ```text
-summary:         "User reports complete connectivity loss; line check failed"
-detected_goal:   "diagnose_connectivity_loss"
+detected_goal:   diagnose_connectivity_loss  [node 47]
 attempted_paths: ["outage_detected (ruled out)", "line_fault (inconclusive)"]
 confirmed_facts: [("postcode", "BT1 4AB"), ("device_id", "RTR-0042"),
                   ("scope", "all_devices"), ("duration", "absent")]

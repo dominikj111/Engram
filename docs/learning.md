@@ -142,22 +142,30 @@ Common tags: ["waiting", "lock"]
 
 ## 11. Weak Answer Memory
 
-Incorrect or uncertain answers are stored rather than discarded.
+Incorrect or uncertain answers are stored rather than discarded. Input text is
+never stored — the tokeniser maps input to node IDs and discards the text at the
+processing boundary. The activation pattern alone is sufficient to diagnose why
+the path failed and to connect the correct solution node. There is no text to
+scrub because text never entered storage.
 
 ### 11.1 Storage Format
 
 ```json
 {
   "id": "wm-0042",
-  "question": "Why does rust borrow fail?",
-  "tokens": ["rust", "borrow"],
+  "activated_nodes": [4, 7, 12],
   "attempted_path": "rust_lifetime_scope",
-  "attempted_solution": "lifetime issue",
+  "attempted_solution_node": 23,
   "status": "uncertain",
   "session_id": "2026-03-06-001",
-  "correction": null
+  "correction_node": null
 }
 ```
+
+`activated_nodes` is the node activation pattern that triggered this session —
+the concepts the query mapped to. A human or operator reviewing weak memory sees
+which domain concepts were in play and which path failed: enough to fix the graph
+without ever knowing what the user typed.
 
 ### 11.1.1 Expiry Policy
 
@@ -165,8 +173,8 @@ Weak memory entries that are never corrected become noise. Entries expire
 under two conditions:
 
 - **Age expiry:** entry has not been accessed or updated in 90 days
-- **Supersession:** a high-confidence path now covers the same token set that
-  triggered the weak answer — the graph has learned what the weak memory was
+- **Supersession:** a high-confidence path now covers the same activated node set
+  that triggered the weak answer — the graph has learned what the weak memory was
   waiting to teach
 
 Expired entries move to status `"expired"` and are excluded from matching.
@@ -179,19 +187,18 @@ signal even without an explicit user correction.
 
 ### 11.2 Promotion to Main Graph
 
-When a user later provides the correct answer:
+When the correct solution node is identified — either by the user confirming a
+later attempt, or by an operator reviewing weak memory entries:
 
-```text
-User: Actually the issue was mutable reference conflict
-```
+1. Locate the weak memory entry by session ID
+2. Identify the correct solution node (by node ID, not by text)
+3. Apply positive reinforcement to the correct path
+4. Apply negative reinforcement to the attempted path (`attempted_path`)
+5. Set `correction_node` and update status to `"resolved"`, then archive
 
-The system:
-
-1. Locates the weak memory entry by session or question hash
-2. Resolves the correct path ("rust\_ownership\_violation")
-3. Applies positive reinforcement to the correct path
-4. Applies negative reinforcement to the incorrect path
-5. Updates the entry status to `"resolved"` and archives it
+No text is required at any step. The activation pattern (`activated_nodes`)
+shows which concepts were in play; the correct solution node closes the graph
+gap directly.
 
 ---
 
@@ -206,8 +213,8 @@ were presented. Without this, the UI becomes inconsistent across turns.
 struct UIContextRecord {
     turn:       u32,
     components: Vec<UIComponent>,  // what was rendered in this turn
-    selection:  Option<String>,    // what the user clicked or said, if anything
-    dismissed:  Vec<String>,       // options presented but not chosen
+    selection:  Option<u32>,       // node or branch ID the user selected — never free text
+    dismissed:  Vec<u32>,          // node IDs of options presented but not chosen
 }
 ```
 
