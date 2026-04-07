@@ -5,34 +5,17 @@
 > *Engrams are defined as the physical changes in brain state induced by an
 > event, serving as the memory trace.*
 
-Edge weight updates are the physical changes. Resolved sessions are the
-events. The graph is the memory trace. Knowledge accumulates structurally,
-not as stored text.
-
 ---
 
 ## What Engram is
 
-Engram is **symbolic AI** — knowledge is explicit, structured, and
-inspectable, not distributed across opaque weights. This is a deliberate
-choice, not a limitation. For bounded domains it is the right architecture:
-every decision is auditable, every weight is named, and the system improves
-without retraining.
-
-A deterministic reasoning kernel. Instead of predicting answers statistically,
-`engram` navigates a directed graph of concepts, asks targeted **breaking
-questions** (targeted clarifying questions that partition the solution space)
-to resolve ambiguity, reinforces correct reasoning paths through session
-feedback, and emits typed **action contracts** that a separate execution layer
-validates and runs.
-
-At its core: a defined set of contexts and actions. Learning is finding the most
-reliable path from an initial context to the right action. The system discovers
-connections between things already in the graph — it cannot invent new knowledge.
-Factual expansion requires a human to add new nodes and edges. This is intentional:
-the original goal was a dialogue system with a hard domain boundary that stays
-reliably correct within it, rather than a general system that occasionally hallucinates
-outside it.
+Engram is a **deterministic reasoning kernel** — symbolic AI with hard boundaries and
+fluid internals. The nodes and actions are fixed by design; what learns over time are
+the connections between them. Given a context, Engram navigates a directed graph of
+concepts, asks targeted **breaking questions** to resolve ambiguity, and emits typed
+**action contracts** that a separate execution layer runs. Every path is auditable,
+every weight is named, and the system improves without retraining — not by inventing
+new knowledge, but by finding more reliable routes through what it already knows.
 
 The design makes specific trade-offs that most AI tooling deliberately avoids:
 
@@ -83,15 +66,6 @@ runbooks distilled from resolutions, onboarding paths that outlast any wiki,
 CI/CD triage patterns learned from real failures. Attribution is structurally
 absent — not scrubbed, never recorded.
 
-The same mechanism produces evidence-based technical debt maps. Component
-nodes accumulate weight proportional to how often they appear in real incident
-paths — not cyclomatic complexity, but confirmed fault frequency. A module
-that appears in 87% of auth-related resolutions is a stronger refactoring
-target than anything static analysis can identify. Latent node discovery
-surfaces hidden coupling between components that co-activate across incidents
-without a documented connection — structural problems the team never
-explicitly named.
-
 **Industrial domain agent** — bounded, high-stakes domains where determinism
 and auditability are regulatory requirements: medical triage routing,
 financial compliance screening, infrastructure fault isolation. The graph
@@ -119,36 +93,19 @@ instance share the *graph* (compressed patterns), never raw conversations.
 The graph learns from every LLM-confirmed answer, so queries that initially
 required model reasoning eventually resolve from Engram alone.
 
-[docs/use_cases.md](docs/use_cases.md) documents all 17 deployment contexts.
+[docs/use_cases.md](docs/use_cases.md) documents all 10 deployment contexts.
 
 ---
 
 ## How the Graph Learns — Privacy by Architecture
 
 User input text is discarded at the tokeniser boundary — it never enters any
-storage layer. The tokeniser maps input tokens to node IDs and drops the text.
-Everything downstream — propagation, reinforcement, weak memory, session records
-— operates exclusively on node IDs. This is a structural guarantee, not a
-sanitisation policy: there is no code path by which input text could reach storage.
+storage layer. This is a structural guarantee, not a sanitisation policy.
 
-After each session, Engram updates the graph based on outcome:
-
-```text
-Session confirmed →  edge weights on the successful path increase
-                     w' = w + α(1 - w)   ← asymptotic, never saturates
-
-Session rejected  →  edge weights on the failed path decrease
-                     w' = w - α·w        ← proportional decay
-
-Repeated enough times:
-  high-confidence paths resolve without any questions asked
-  low-confidence paths ask a breaking question to narrow the space
-  failed paths accumulate in weak memory for later correction
-```
-
-What the graph stores after each session is a node activation pattern and an
-outcome — not words, not who was involved, not what was typed. After 30 engineers
-hit the same error and confirm the same fix:
+After each session, edge weights on the confirmed path increase; weights on
+rejected paths decay. What the graph stores is a node activation pattern and
+an outcome — not words, not who was involved, not what was typed. After 30
+engineers hit the same error and confirm the same fix:
 
 ```text
 error=timeout + service=auth
@@ -156,21 +113,9 @@ error=timeout + service=auth
 ```
 
 The 34 people who contributed that weight are structurally absent — not
-scrubbed, never recorded. The graph absorbed the outcome and discarded
-the participants.
-
-**Disagreement is handled gracefully.** Conflicting resolutions accumulate
-as weak memory entries. A path earns high confidence only after repeated
-independent confirmation — minority opinions stay provisional rather than
-corrupting the shared graph.
-
-**Latent structure emerges automatically.** When multiple sessions
-independently co-activate the same two concepts without a direct connection,
-the system creates a new hidden node between them — surfacing shared patterns
-the team never explicitly documented.
-
-This applies wherever a group works through the same problem space repeatedly:
-incident response, onboarding, compliance routing, CI/CD triage.
+scrubbed, never recorded. Conflicting resolutions stay provisional until
+independently confirmed. Hidden relationships between concepts surface
+automatically as the session population grows.
 
 ---
 
@@ -184,6 +129,28 @@ incident response, onboarding, compliance routing, CI/CD triage.
 - **Action-first** — solution nodes carry typed contracts; execution layer strictly separated
 - **Goal-aware** — multi-step goals span multiple exchanges with mid-conversation revision support
 - **Escalation-ready** — structured context exported for handoff when confidence falls below threshold
+- **Configurable learning** — each graph deployment chooses whether to learn from live traffic or stay frozen
+
+---
+
+## Graph Deployment Modes
+
+The graph is a file on disk. Write-back is a deliberate per-deployment choice, not a
+system default. This gives two distinct operating modes:
+
+**Continuous learning** — sessions write back to the graph in real time. Edge weights
+shift with every confirmed or rejected outcome. The right choice for collective memory,
+LLM agent mesh, and MCP deployments where improving from live traffic is the point.
+
+**Frozen / versioned** — the engine reasons against a static graph and never mutates
+it. Learning happens offline: session outcomes accumulate in a staging environment, a
+new graph version is validated and promoted deliberately. The right choice for
+industrial agents, compliance routing, and business logic runners where stability and
+auditability matter more than continuous improvement — the graph behaves like versioned
+application code.
+
+The same engine supports both. Which mode a deployment uses is a configuration
+decision, not an architectural one.
 
 ---
 
@@ -207,7 +174,7 @@ The combination that does not exist elsewhere: a dialogue layer with structural 
 
 | Document | What it covers |
 | --- | --- |
-| [use_cases.md](docs/use_cases.md) | 17 deployment contexts with strategic priority — start here for the "why" |
+| [use_cases.md](docs/use_cases.md) | 10 deployment contexts with strategic priority — start here for the "why" |
 | [proposal.md](docs/proposal.md) | Design overview, motivation, core concept, and index to all spec files |
 | [architecture.md](docs/architecture.md) | Data structures, query pipeline, activation-as-attention |
 | [disambiguation.md](docs/disambiguation.md) | Breaking questions, path labeling, goal tracking |

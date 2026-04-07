@@ -8,15 +8,15 @@ independently of implementation detail.
 
 ## Strategic Priority
 
-**Primary focus: §15 — LLM Agent Mesh / Cost Optimizer.**
+**Primary focus: §8 — LLM Agent Mesh / Cost Optimizer.**
 This is the clearest path to revenue and investor attention. The narrative is simple,
 the value is CFO-legible ("reduce LLM API spend by 70-80% in bounded domains"), and it
 positions Engram *with* the AI ecosystem rather than against it. Switching cost compounds
 as the graph accumulates confirmed session knowledge — a moat that grows automatically.
 
-**Long-term target: §14 — Hierarchical Distributed Aggregation.**
+**Long-term target: §7 — Hierarchical Distributed Aggregation.**
 The structural differential privacy angle is technically novel and addresses a large
-market (privacy-preserving analytics). Build this after §15 generates revenue and
+market (privacy-preserving analytics). Build this after §8 generates revenue and
 credibility to fund it.
 
 **Deferred: §2 — Industrial Domain Agent.**
@@ -24,12 +24,12 @@ Requires deep vertical expertise and long enterprise sales cycles. Strong eventu
 case; wrong first market. Revisit once the core engine is proven.
 
 **All other use cases** are natural extensions that emerge from the same architecture.
-None require a strategic detour — they become available as the §15 roadmap phases
+None require a strategic detour — they become available as the §8 roadmap phases
 are completed.
 
 ---
 
-## Roadmap to §15
+## Roadmap to §8
 
 The critical path from Phase 0 (current) to a demonstrable LLM Agent Mesh:
 
@@ -60,7 +60,9 @@ notes. It is noisy, personal, and hard to query. Most of it is social glue ("sou
 
 **What Engram stores instead:** Every session that reaches a confirmed solution reinforces
 a reasoning path in the graph. The graph accumulates *what the team collectively confirmed
-as correct* — not who said it, not when, not in what tone.
+as correct* — not who said it, not when, not in what tone. The result is a queryable
+store of confirmed facts: activate the graph with a context and retrieve the confirmed
+path, confidence score, and ruled-out candidates — structured recall, not text search.
 
 ```text
 Raw team chat                     Engram graph after N sessions
@@ -84,13 +86,11 @@ corrupting the shared graph.
 
 **Latent node discovery surfaces hidden consensus.** When multiple people independently
 co-activate the same two concepts without a documented connection, the system discovers a
-latent edge. This is the engine finding shared mental models the team has not explicitly
-written down.
+latent edge — finding shared mental models the team has not explicitly written down.
 
 **Distributed merge (§20.7) enables cross-team knowledge.** Two teams running separate
-instances can export and merge graphs using the weighted-average strategy — the result
-encodes the union of both teams' confirmed experience, with confidence proportional to
-how many sessions support each path.
+instances can export and merge graphs — the result encodes the union of both teams'
+confirmed experience, with confidence proportional to how many sessions support each path.
 
 **Target contexts:**
 
@@ -99,12 +99,36 @@ how many sessions support each path.
 - DevOps procedure graphs accumulated from deployment sessions
 - Any team where the same problems recur and the solutions are deterministic
 
+### 1.1 Incident Post-Mortem Distillation
+
+Post-mortems are written, then rot in Confluence. The valuable artifact is never the
+document — it is the resolution path. Feed each confirmed resolution into the graph
+instead of a wiki page.
+
+After 20 incidents: `high_latency + cache_miss → CheckDatabaseIndexes [confidence: 0.87, n=20]`
+
+The next on-call engineer gets the distilled experience of two years of incidents, not a
+pile of documents to skim at 3am. No one curates a runbook — the graph self-organises
+from outcomes. Escalation nodes capture cases that needed human intervention, recording
+what was tried first — useful context for the next incident of the same type.
+
+### 1.2 New Engineer Onboarding
+
+"How do I run the test suite locally?" asked by 40 engineers over 3 years. Currently
+answered in Slack threads, half of which are wrong by now.
+
+Engram walks each question through breaking questions (which service? which environment?),
+reinforces the paths that resolve successfully, and accumulates a graph that encodes what
+actually works — not what someone thought was correct when they wrote the wiki page.
+The graph improves from every onboarding session. Outdated paths lose weight when they
+produce weak-memory entries.
+
 ---
 
 ## 2. Industrial Domain Agent (Vertical Slice) — *Deferred*
 
 > **Status:** Deprioritised. Requires deep vertical domain expertise and long enterprise
-> sales cycles. The architecture supports it fully — revisit once the §15 agent mesh is
+> sales cycles. The architecture supports it fully — revisit once the §8 agent mesh is
 > proven and a vertical partner opportunity arises.
 
 A bounded, high-stakes domain where determinism and auditability matter more than
@@ -159,11 +183,12 @@ Engram maps cleanly onto that loop.
 
 ---
 
-## 4. Multi-Command Orchestrator
+## 4. Event-Driven Automation and Business Logic
 
-The reasoning engine selects an action; a validated execution layer runs it. This is the
-correct architecture for any system where commands have side effects and must be
-authorised before execution.
+The core pattern: an event arrives, the graph activates, breaking questions narrow the
+context if needed, an action contract is selected, the execution layer runs it, the
+session closes. This pattern covers both technical automation and business process
+decisions — the architecture is identical, only the domain differs.
 
 **Policy engine controls dispatch:**
 
@@ -172,104 +197,66 @@ authorised before execution.
 - Confirmation requirement before destructive actions
 - Rollback availability tracked per action type
 
-**Event-driven entry point (§20.11) enables reactive orchestration:**
+**Business logic parity across frontend and backend:** The same graph compiled to WASM
+runs in the browser and natively on the server. The same rules gate UI transitions
+("can this user proceed to checkout?") without a roundtrip and enforce backend decisions
+— eliminating the class of bugs that comes from business logic drift between layers.
+Long-running process state lives in the application database; Engram is the rules layer,
+not the state store.
+
+**The graph self-improves from outcomes.** Paths that resolve correctly accumulate weight;
+paths that produce weak memory entries decay. Process optimisation becomes automatic.
 
 ```text
-External event: DeviceOffline
-  → system initiates turn
+payment_failed event
+  → session: context={failure_code, retry_count}
+  → breaking question: retry_count < 3?
+  → yes → RetryPayment
+  → no  → NotifyUser + FlagForReview
+
+DeviceOffline event
   → breaking questions narrow root cause
   → action selected: CheckLineStatus or ScheduleEngineer
-  → policy engine validates
-  → execution layer runs command
+  → policy engine validates → execution layer runs
   → outcome feeds back into graph as session
 ```
 
-The graph learns which action sequence resolves which event pattern. Over time,
-repeated incident types are handled with higher confidence and fewer breaking questions.
+### 4.1 CI/CD Test Failure Triage
 
-**Target contexts:**
+A test fails in CI. Is it infrastructure, a race condition, or a genuine regression?
+An Engram graph walks the space: which suite? which error pattern? previously seen?
+intermittent or consistent? The graph learns from how engineers actually resolve
+failures — after enough sessions, common signatures route directly to the right fix
+path with no human intervention required.
 
-- Infrastructure automation with auditable decision trails
-- CI/CD pipeline routing (test failures → triage path → remediation action)
-- Scheduled maintenance orchestration
-- Incident response runbooks that self-improve from resolution outcomes
+### 4.2 Structured Log and Observability Intelligence
 
----
+Log events arrive as structured activations — service, error type, frequency pattern.
+The graph routes to a candidate cause with a confidence score. Sessions where an
+engineer confirms the diagnosis reinforce the path. The graph stores patterns, not log
+content — a shared instance encodes "what this error pattern means" without any raw log
+data being shared or stored centrally.
 
-## 5. Compressed Chat Memory / Knowledge Substrate
+```text
+service=auth + error=timeout + frequency=burst
+  → CheckDatabaseConnectionPool  [confidence: 0.83, n=17]
+```
 
-Traditional chat archives grow without bound and are expensive to search. Engram offers
-an alternative: instead of storing what was said, store what was learned.
+### 4.3 Git Commit and Change Analysis
 
-**Properties of graph-as-memory:**
+A commit arrives as an event. Concept nodes activate — schema_change, auth_path,
+migration_present. The graph routes to action contracts — RequiresSecurityReview,
+NotifySecurityTeam, BlockMergeUntilApproved. Not raw diffs, not author names — the
+reasoning path from change signature to action, reinforced each time the pattern repeats.
 
-| Property | Raw chat archive | Engram graph |
-| --- | --- | --- |
-| Storage growth | Linear with messages | Sub-linear (edge weight updates, not new rows) |
-| Query method | Full-text search | Graph activation (structured) |
-| Attribution | Explicit | Absent by design |
-| Signal-to-noise | Low (social content dominates) | High (only confirmed outcomes) |
-| Staleness handling | Manual deletion | Edge weight decay over time |
-| Cross-session synthesis | Manual | Automatic (latent node discovery) |
-
-**What gets compressed in:**
-
-- Confirmed resolution paths (as reinforced edges)
-- Rejected paths (as negative weight adjustments + weak memory)
-- Emergent concept relationships (as latent nodes)
-- User skill patterns (as profile metadata)
-
-**What is intentionally excluded:**
-
-- Who said what
-- Timestamps of individual turns
-- Verbatim message content
-- Social/emotional context
-
-**Reconstruction:** A session can be approximately reconstructed from its recorded
-path labels, breaking questions asked, and outcome — enough for audit purposes,
-not enough to re-identify individuals.
-
-This makes Engram suitable as a **privacy-preserving collective memory** for teams,
-communities, or organisations where the factual substrate matters but individual
-attribution does not.
+```text
+files=[auth/*, db/migrations/*] + type=schema_change
+  → RequiresSecurityReview  [confidence: 0.79, n=23]
+```
 
 ---
 
-## 6. Incident Post-Mortem Distillation
-
-Post-mortems are written, then rot in Confluence. The valuable artifact is never the
-document — it is the resolution path. Feed each confirmed resolution into the graph
-instead of a wiki page.
-
-After 20 incidents: `high_latency + cache_miss → CheckDatabaseIndexes [confidence: 0.87, n=20]`
-
-The next on-call engineer gets the distilled experience of two years of incidents, not a
-pile of documents to skim at 3am. No one curates a runbook — the graph self-organises
-from outcomes.
-
-**Architectural fit:** Sessions with `outcome=resolved` directly drive §8 reinforcement.
-Escalation nodes capture the cases that needed human escalation, recording what was tried
-before the escalation — useful context for the next incident of the same type.
-
----
-
-## 7. New Engineer Onboarding
-
-"How do I run the test suite locally?" asked by 40 engineers over 3 years. Currently
-answered in Slack threads, half of which are wrong by now.
-
-Engram walks each question through breaking questions (which service? which environment?),
-reinforces the paths that resolve successfully, and accumulates a graph that encodes what
-actually works — not what someone thought was correct when they wrote the wiki page.
-
-**What makes this better than a wiki:** The graph improves from every onboarding session.
-Senior engineers stop repeating themselves; the correct path earns higher edge weight with
-each confirmation. Outdated paths lose weight when they produce weak-memory entries.
-
----
-
-## 8. Compliance and Regulatory Decision Routing
+## 5. Compliance and Regulatory Decision Routing
 
 "Does this change need a security review?" should always give the same answer given the
 same inputs. With an LLM it might not.
@@ -287,23 +274,7 @@ suitability screening, export control jurisdiction checks.
 
 ---
 
-## 9. CI/CD Test Failure Triage
-
-A test fails in CI. Is it infrastructure, a race condition, or a genuine regression?
-Currently a human reads the log. A Engram graph walks the space: which suite? which
-error pattern? previously seen? intermittent or consistent?
-
-The graph learns from how engineers actually resolve failures. After enough sessions,
-common failure signatures route directly to the right fix path with high confidence and
-no human intervention required.
-
-**Relationship to logging services:** If Engram is integrated with a structured log or
-observability service (see §12), CI failure events become activations on the same graph
-that handles production incidents — the same learned paths apply in both contexts.
-
----
-
-## 10. Embedded and Offline Field Diagnostics
+## 6. Embedded and Offline Field Diagnostics
 
 A field technician on a factory floor, no internet, diagnosing a machine fault. An LLM
 is out of the question. A narrow-domain Engram graph at <1 MB fits on a device with a
@@ -319,78 +290,11 @@ against every cloud-dependent alternative.
 
 ---
 
-## 11. Requirements Disambiguation at the Product/Engineering Boundary
-
-A ticket arrives: "add dark mode support." For which platform? All users or premium?
-System-wide or just the dashboard? An LLM interprets this and writes code. Engram asks
-breaking questions and records the resolved specification as a labeled path.
-
-The output is a structured, reusable path — not a one-off answer. The same disambiguation
-logic accumulates value across every future ticket on the same axes. Over time, common
-ambiguity patterns are resolved faster because the breaking questions are already tuned.
-
----
-
-## 12. Structured Log Intelligence
-
-A personal or team log service generates noisy, growing, hard-to-query data. Engram sits
-in front of it as a reasoning layer: instead of full-text searching raw logs, the engineer
-navigates a graph — service? error type? frequency pattern? time window? — and arrives at
-a candidate cause with supporting evidence.
-
-Sessions where an engineer confirms a log-indicated diagnosis reinforce the path:
-
-```text
-service=auth + error=timeout + frequency=burst
-  → CheckDatabaseConnectionPool  [confidence: 0.83, n=17]
-```
-
-**Privacy benefit for a public log service:** The graph stores patterns, not log content.
-A shared Engram instance can encode "what this error pattern means" across many users
-without any of their raw log data being shared or stored centrally.
-
-**Architectural note:** Needs a log-event ingestion adapter that maps structured log
-fields (service, level, error code, rate) to concept node activations. This is the only
-new layer required — the reasoning engine is unchanged.
-
----
-
-## 13. Git Commit and Change History Analysis
-
-Git history is rich signal: file paths, change types, commit message vocabulary, co-changed
-modules. Engram can encode the patterns the team has learned from it.
-
-After enough sessions correlating change patterns with outcomes:
-
-```text
-files=[auth/*, db/migrations/*] + type=schema_change
-  → RequiresSecurityReview  [confidence: 0.79, n=23]
-
-files=[frontend/components/*] + commit_msg_contains=refactor
-  → HighRegressionRisk       [confidence: 0.61, n=9]
-```
-
-**What travels into the graph:** Not raw diffs, not author names — just the reasoning
-path from change signature to outcome, reinforced each time the pattern repeats.
-
-**Target applications:**
-
-- Code review routing: given the changed files, surface the relevant concerns automatically
-- Risk scoring: which commits historically correlate with post-merge bugs?
-- Knowledge transfer: new engineers learn which combinations of changes are sensitive
-
-**Architectural note:** Needs a git-event adapter that maps commit metadata and diff
-summaries to concept activations. The graph stores *what the team has learned* from git
-history, not the history itself.
-
----
-
-## 14. Hierarchical Distributed Aggregation
+## 7. Hierarchical Distributed Aggregation
 
 **The core idea:** Local Engram instances (including browser-embedded WASM instances)
-track user interaction paths and emit compact graph deltas — not raw events, not PII —
-to a server-side Engram instance that merges them. Multiple server instances can
-aggregate further upward.
+emit compact graph deltas — not raw events, not PII — to server-side instances that
+merge them upward.
 
 ```text
 Browser (WASM)          Server instance          Global aggregator
@@ -417,7 +321,7 @@ actionable product intelligence with no user tracking.
 - Progressive knowledge rollout: push a graph update to regional nodes, observe adoption
 - Local-first apps that contribute to a global knowledge pool without central data collection
 
-**Architectural requirements this implies:**
+**Architectural requirements:**
 
 - WASM compilation target for the reasoning engine
 - Compact graph delta serialization format (binary diff of edge weights + new nodes)
@@ -426,21 +330,21 @@ actionable product intelligence with no user tracking.
 
 ---
 
-## 15. LLM Pre-Memory, Preprocessor, and Agent Mesh
+## 8. LLM Pre-Memory, Preprocessor, and Agent Mesh
 
 **The problem with LLM agents today:** Every query hits the model cold. The model reads
 the full conversation history, re-reasons from scratch, burns tokens and GPU time. For
 bounded domains, most queries are not novel — they are variations on paths the system
 has resolved hundreds of times before.
 
-### 15.1 Compressed Memory
+### 8.1 Compressed Memory
 
 The graph *is* the compressed memory passed to the LLM. A structured graph path (a few
 hundred bytes) replaces a multi-turn conversation history (thousands of tokens). The LLM
 gets more signal with less context window, and never has to re-disambiguate what was
 already resolved in previous turns.
 
-### 15.2 Query Preprocessor
+### 8.2 Query Preprocessor
 
 A specialist Engram agent does not try to answer the query — it tries to *structure* it.
 By the time the query reaches the LLM, the specialist has already:
@@ -454,13 +358,7 @@ The LLM receives a lean, structured handoff instead of raw conversation. It can 
 straight to the genuinely novel part. This saves tokens, reduces hallucination surface,
 and makes the LLM response easier to parse back into the graph.
 
-### 15.3 Specialist Agent Mesh
-
-Attempting to cover all domains in one large graph creates a fundamental problem:
-**confidence scores lose meaning**. "High confidence" in the auth domain and "high
-confidence" in the billing domain are calibrated against completely different session
-populations. Cross-domain edge weights interfere. One bad update in one domain ripples
-into unrelated paths.
+### 8.3 Specialist Agent Mesh
 
 The better architecture is a **fleet of small, specialized graphs** — one per domain —
 coordinated by a lightweight router:
@@ -486,31 +384,11 @@ Router agent (lightweight — domain classification only)
                                     Result feeds back into specialist graph
 ```
 
-Each specialist graph:
+Each specialist graph is owned and updated independently, has locally meaningful
+confidence, can be deployed or rolled back without touching other domains, and fails
+in isolation.
 
-- is owned and updated independently by the team responsible for that domain
-- has locally meaningful confidence (calibrated only against its own sessions)
-- can be deployed, rolled back, or replaced without touching any other domain
-- fails in isolation — a broken billing graph does not affect auth
-
-The router itself can be a tiny Engram graph: narrow, fast, and self-improving as
-routing decisions are confirmed or corrected.
-
-**This is §20.5 Persona Graphs as the core architecture, not a future direction.**
-The agent mesh is how persona graphs compose at runtime. See the note in §20.5 of
-the proposal for the elevation rationale.
-
-### 15.4 Architectural Requirements
-
-- Escalation payload must carry structured graph context (path labels, ruled-out
-  candidates, confidence history), not just free text
-- LLM response parser that maps the answer back to a graph path for reinforcement
-- Router agent: small domain-classification graph or tag-vote classifier (§20.3)
-- Persona graph format: versioned, signable, independently deployable (§20.5)
-- Optional: LLM-generated breaking questions feed into the graph as new nodes
-  (§15 automatic context expansion already covers promotion after confirmation)
-
-### 15.5 Cost Profile
+### 8.4 Cost Profile
 
 ```text
 Query volume breakdown (mature bounded domain):
@@ -524,17 +402,12 @@ The system is a self-improving cost optimizer.
 
 ---
 
-## 16. MCP Server — Engram as a Knowledge Database for LLM Agents
+## 9. MCP Server — Engram as a Knowledge Database for LLM Agents
 
-Today's LLMs carry memory in two ways: the context window (resets every
-conversation) and file-based storage (flat, unstructured, manually managed).
-Neither accumulates knowledge across sessions. Neither learns from confirmed
-outcomes. Neither provides structured, confidence-weighted recall.
-
-Engram as an MCP server inverts the relationship from §15. In §15, Engram
-escalates to an LLM when it cannot resolve a query. Here, the **LLM calls
-Engram as a tool** — querying the graph mid-reasoning to retrieve structured
-knowledge the model itself does not carry.
+Engram as an MCP server inverts the relationship from §8. In §8, Engram escalates to
+an LLM when it cannot resolve a query. Here, the **LLM calls Engram as a tool** —
+querying the graph mid-reasoning to retrieve structured knowledge the model itself does
+not carry.
 
 ```text
 LLM reasoning step
@@ -549,15 +422,12 @@ LLM reasoning step
           ruled_out: ["ScaleReplicas (confidence: 0.31)"],
           breaking_questions_resolved: ["scope_dimension", "load_dimension"]
         }
-        │
-        ▼
-  LLM incorporates structured context — typed result, not a raw string
 ```
 
 ### Why this is different from RAG
 
-RAG retrieves text chunks by vector similarity — the LLM gets a paragraph
-that might contain the answer. Engram returns a **reasoning path**:
+RAG retrieves text chunks by vector similarity — the LLM gets a paragraph that might
+contain the answer. Engram returns a **reasoning path**:
 
 | | RAG | Engram MCP |
 | --- | --- | --- |
@@ -567,33 +437,11 @@ that might contain the answer. Engram returns a **reasoning path**:
 | Learning from LLM use | None | LLM-confirmed answers reinforce the graph |
 | Attribution | Retrieves source documents | Structurally absent — patterns only |
 
-### Shared memory across LLM agents
-
-Multiple LLM agents pointing at the same Engram instance share the graph —
-accumulated patterns from thousands of sessions — without sharing raw
-conversations. Each agent gets the benefit of every session any agent
-contributed to. The structural privacy property holds: agents share
-*what was confirmed as correct*, never *who said what*.
-
-This is the missing layer in the current LLM memory stack:
-
-```text
-Current LLM memory:
-  context window     — resets each conversation
-  file storage       — flat, unstructured, manually curated
-
-With Engram MCP:
-  context window     — resets each conversation
-  Engram graph       — persistent, structured, self-improving, confidence-weighted
-  file storage       — raw content when needed
-```
-
-### The graph learns from LLM use
-
-When an LLM agent calls Engram, reasons with the result, and the user
-confirms the answer — that outcome feeds back into the graph as a session,
-reinforcing the path. The LLM teaches the graph over time. Queries that
-initially required LLM reasoning eventually resolve from the graph alone.
+Multiple LLM agents pointing at the same Engram instance share the graph — accumulated
+patterns from thousands of sessions — without sharing raw conversations. When an LLM
+agent confirms an answer, that outcome feeds back into the graph as a session. The LLM
+teaches the graph over time; queries that initially required model reasoning eventually
+resolve from Engram alone.
 
 ### Architectural requirements
 
@@ -601,24 +449,19 @@ initially required LLM reasoning eventually resolve from the graph alone.
 - `engram.query(text)` tool: returns path, confidence, ruled-out candidates
 - `engram.confirm(session_id, outcome)` tool: feeds result back into reinforcement
 - `engram.explain(session_id)` tool: returns full reasoning trace for the LLM to cite
-- Multiple Engram instances (specialist graphs) exposed as separate MCP tools,
-  allowing the LLM to route to the right domain knowledge explicitly
 
 ---
 
-## 17. Technical Debt Mapping and Refactoring Prioritisation
+## 10. Technical Debt Mapping and Refactoring Prioritisation
 
-**The problem:** Refactoring decisions today are made from intuition ("the auth module
-feels messy") or blunt static analysis metrics (cyclomatic complexity, test coverage,
-churn rate). Neither tells you *which components actually cause problems for users* nor
-*how frequently*. A module can have high complexity and never be touched in an incident.
-Another can be clean by every metric and sit on the critical path of every failure.
+**The problem:** Refactoring decisions today are made from intuition or blunt static
+analysis metrics (cyclomatic complexity, test coverage, churn rate). Neither tells you
+*which components actually cause problems* nor *how frequently*. A module can have high
+complexity and never be touched in an incident. Another can be clean by every metric and
+sit on the critical path of every failure.
 
-**What Engram records:** Every confirmed session reinforces the reasoning path that led
-to the solution. Each node on that path — each component, dimension, or concept that
-was activated — accumulates weight proportional to how often it appears in real incident
-resolutions. After enough sessions, the graph encodes *evidence-based component fault
-frequency*:
+**What Engram records:** Each node activated on a confirmed resolution path accumulates
+weight proportional to how often it appears in real incidents. After enough sessions:
 
 ```text
 After 40 resolved sessions over 3 months:
@@ -629,104 +472,39 @@ payment_service       weight: 0.41  (on the path in 12 of 40 sessions)
 notification_worker   weight: 0.18  (on the path in 4 of 40 sessions)
 ```
 
-This is not a static analysis score. It is a ranked list derived from real incidents —
-which components your team actually had to diagnose to resolve real problems.
+This is not a static analysis score. It is a ranked list derived from real incidents.
 The refactoring priority list writes itself.
 
 **Latent node discovery reveals hidden coupling.** When `auth_module`,
 `session_handling`, and `token_refresh` repeatedly co-activate across unrelated
-incidents without a documented connection, the graph surfaces a latent node — probably
-something like `auth_state_lifecycle`. This is a structural problem the team never
-explicitly named, discovered because the graph found the pattern across dozens of
-sessions. Static analysis cannot find this: it requires co-occurrence across runtime
-problem contexts, not import graphs.
+incidents without a documented connection, the graph surfaces a latent node —
+a structural problem the team never explicitly named. Static analysis cannot find this:
+it requires co-occurrence across runtime problem contexts, not import graphs.
 
-**Negative reinforcement tracks what was tried and failed.** When a fix is applied,
-confirmed, then later rejected on a related incident, the path weight decays. A
-component that appears high on the list for wrong reasons will naturally decay as the
-team finds more precise root causes. The ranking self-corrects over time.
-
-**Scope:** this is not limited to bug fixing. Any recurring decision pattern that can
-be confirmed or rejected fits the same model — architecture reviews, dependency upgrade
-decisions, performance investigations. The graph maps *where the team spent diagnostic
-effort* across all of these, which is a proxy for *where the system resists change*.
+**Negative reinforcement self-corrects the ranking.** A component that appears high on
+the list for wrong reasons will naturally decay as the team finds more precise root
+causes.
 
 **Target contexts:**
 
-- Identifying which components to prioritise in a refactoring sprint, ranked by
-  confirmed incident weight rather than code metrics
-- Detecting hidden coupling between components that does not appear in import graphs
-  but co-activates consistently in runtime incidents
-- Building an evidence base for architectural decisions: "we should extract this module
-  because it appears in 87% of auth-related incidents" is a stronger argument than
-  "it has high cyclomatic complexity"
-- Tracking whether a refactoring actually reduced fault frequency — the same component
-  should decline in the ranking after a successful refactor as fewer incidents involve it
-
----
-
-## 18. Business Logic Engine / Business Process Runner
-
-**The problem:** Business logic rarely lives in one place. Decision rules exist in backend
-services, duplicated on the frontend for responsiveness, partially re-implemented in
-infrastructure configuration, and tested only indirectly through unit tests that cover
-behaviour rather than intent. When the logic drifts between layers, bugs follow.
-
-**What Engram provides:** A single portable artifact that encodes business rules as an
-explicit, auditable graph. Any event — user action, payment webhook, inventory update —
-initiates a session. The graph navigates to an action contract. The execution layer runs
-it. The session closes.
-
-```text
-payment_confirmed event
-  → session: context={order_id, amount, user_tier}
-  → activation → action: SendConfirmationEmail + UpdateInventory
-
-payment_failed event
-  → session: context={failure_code, retry_count}
-  → breaking question: retry_count < 3?
-  → yes → RetryPayment
-  → no  → NotifyUser + FlagForReview
-```
-
-Long-running process state (order status, retry counters) lives in the application
-database — Engram is the rules layer, not the state store. Each business event is its
-own session, a single decision point. This is the right separation of concerns.
-
-**The frontend/backend parity property:** The same graph compiled to WASM runs in the
-browser and natively on the server. The same rules gate UI transitions ("can this user
-proceed to checkout?") without a roundtrip and enforce backend decisions — eliminating
-the class of bugs that comes from business logic drift between layers.
-
-**What makes this more than a rules engine:** The graph self-improves from outcomes.
-Paths that resolve correctly accumulate weight; paths that produce weak memory entries
-decay. Process optimisation becomes automatic rather than a manual audit exercise.
-
-**Architectural fit:** This is §4 Multi-Command Orchestrator applied to business
-processes specifically. No new architecture required — action contracts, the policy
-engine, parameter resolution, and event-driven entry already support this pattern.
+- Refactoring sprint prioritisation ranked by confirmed incident weight, not code metrics
+- Detecting hidden coupling that does not appear in import graphs
+- Building an evidence base for architectural decisions
+- Tracking whether a refactoring actually reduced fault frequency over time
 
 ---
 
 ## Summary Table
 
-| # | Use Case | Key Benefit | Priority | Relevant Sections |
-| --- | --- | --- | --- | --- |
-| 15 | **LLM agent mesh / cost optimizer** | 70-80% of bounded-domain queries handled free; LLM only sees novel cases | **Primary focus** | §3.4, §20.1–§20.5 |
-| 16 | **MCP server — LLM knowledge database** | Persistent, confidence-weighted, self-improving memory for LLM agents via MCP | **Primary focus** | §8–§11, §20.8 |
-| 14 | Hierarchical distributed aggregation | Structural differential privacy; graph deltas not raw events | Long-term | §20.7 |
-| 6 | Incident post-mortem distillation | Self-organising runbook from confirmed resolutions | Enabled by §15 | §8, §9 |
-| 7 | New engineer onboarding | Self-improving knowledge base that outlasts any wiki | Enabled by §15 | §8, §11 |
-| 9 | CI/CD test failure triage | Graph learns which failure patterns map to which root causes | Enabled by §15 | §8, §20.11 |
-| 12 | Structured log intelligence | Reasoning layer over logs; graph stores patterns not content | Enabled by §15 | §4, §8 |
-| 13 | Git history pattern analysis | Change signatures → risk/routing paths, no raw diffs stored | Enabled by §15 | §8, §15 |
-| 1 | Team knowledge distillation | Privacy-preserving, attribution-free collective memory | Enabled by §15 | §8–§11, §20.7 |
-| 5 | Compressed chat memory | Sub-linear growth, high signal-to-noise, no attribution | Enabled by §15 | §8–§11, §13 |
-| 8 | Compliance / regulatory routing | Deterministic, auditable decision path — LLM disqualified | Enabled by §15 | §3.6, §4.5 |
-| 11 | Requirements disambiguation | Structured, reusable paths replace one-off PM/eng conversations | Enabled by §15 | §5, §7.5 |
-| 3 | Voice assistant runtime | Surface-agnostic `ResponseEnvelope`, numbered-choice breaking questions | Later | §20.8, §3.5 |
-| 4 | Multi-command orchestrator | Policy-gated action dispatch, event-driven initiation | Later | §3.6, §20.11 |
-| 10 | Embedded / offline field diagnostics | <1 MB graph on a device, syncs when connectivity returns | Later | §17, §20.5 |
-| 17 | **Technical debt mapping** | Refactoring priorities ranked by confirmed incident weight, not static analysis; latent coupling revealed | Enabled by §15 | §8–§10 |
-| 18 | Business logic engine | Single portable artifact for business rules; same graph on frontend (WASM) and backend | Later | §3.4, §3.6, §20.11 |
-| 2 | Industrial domain agent | Deterministic, auditable, offline-capable vertical deployment | **Deferred** | §20.10, §3.6 |
+| # | Use Case | Key Benefit | Priority |
+| --- | --- | --- | --- |
+| 8 | **LLM agent mesh / cost optimizer** | 70-80% of bounded-domain queries handled free; LLM only sees novel cases | **Primary focus** |
+| 9 | **MCP server — LLM knowledge database** | Persistent, confidence-weighted, self-improving memory for LLM agents | **Primary focus** |
+| 7 | Hierarchical distributed aggregation | Structural differential privacy; graph deltas not raw events | Long-term |
+| 1 | Team knowledge distillation | Privacy-preserving, attribution-free collective memory; post-mortems and onboarding as natural outputs | Enabled by §8 |
+| 4 | Event-driven automation and business logic | Policy-gated action dispatch; CI/CD, log intelligence, and git analysis as sub-cases | Enabled by §8 |
+| 5 | Compliance / regulatory routing | Deterministic, auditable decision path — LLM disqualified | Enabled by §8 |
+| 10 | Technical debt mapping | Refactoring priorities ranked by confirmed incident weight, not static analysis | Enabled by §8 |
+| 3 | Voice assistant runtime | Surface-agnostic `ResponseEnvelope`, numbered-choice breaking questions | Later |
+| 6 | Embedded / offline field diagnostics | <1 MB graph on a device, syncs when connectivity returns | Later |
+| 2 | Industrial domain agent | Deterministic, auditable, offline-capable vertical deployment | **Deferred** |
