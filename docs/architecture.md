@@ -72,6 +72,43 @@ Path Selection
 
 The key principle: every step of the reasoning is **explicit and auditable**.
 
+### 2.1 The Graph as a Problem Space Map
+
+Engram does not store a single answer per problem. It stores an evolving map
+of the full problem space — all known causes for a given symptom, each with
+its own confidence score calibrated by how often it turned out to be the real
+cause across all sessions.
+
+The same symptom ("connection timeout") may have many valid root causes:
+undersized connection pool, missing index, lock contention, network issue,
+firewall rule. Each is a real path in the graph. Over time, the graph
+explores all of them and ranks them by confirmed frequency:
+
+```text
+timeout
+  → connection_pool      [weight: 0.76, confidence: 0.71, n=28]  ← common
+  → missing_index        [weight: 0.63, confidence: 0.58, n=14]
+  → lock_contention      [weight: 0.51, confidence: 0.62, n=11]
+  → network_issue        [weight: 0.34, confidence: 0.45, n=6]
+  → firewall_rule        [weight: 0.18, confidence: 0.40, n=3]   ← rare
+```
+
+**Decay does not delete — it deprioritises.** A path with low weight is still
+traversable when activation is high enough. No door is permanently closed.
+If a rare root cause becomes more common (a new firewall policy, a schema
+change), its sessions push its weight back up naturally.
+
+**Early sessions are exploratory — mature sessions are efficient.** The first
+time a novel problem is encountered, the path is unknown and the session may
+be messy: failed attempts, reverts, escalation. Each failed attempt records
+negative reinforcement. Once a working path is confirmed, it earns weight.
+By the tenth similar session, the graph routes directly to the likely cause —
+skipping dead ends that earlier sessions already paid the cost to explore.
+
+This is what makes Engram useful at scale: not that it knows the answer
+immediately, but that it accumulates the collective diagnostic experience of
+every session that came before.
+
 ---
 
 ## 2.5 Target Use Cases
@@ -274,6 +311,33 @@ knowledge graph. Each result maps to concept node activations via the same
 adapter pattern as any other event. Breaking questions only fire if the
 swept context still leaves the path ambiguous — the user is the last resort,
 not the first.
+
+**Failed action revert before learning** — when a session involves multiple
+action attempts and none resolve the issue, the system enforces a clean state
+before learning:
+
+1. Every revertable action that did not lead to a confirmed resolution is
+   rolled back before the session closes.
+2. Only the final confirmed path — the one the user explicitly confirmed as
+   working — is positively reinforced.
+3. All intermediate failed paths receive negative reinforcement independently.
+4. If no path was ever confirmed (full escalation), no positive reinforcement
+   is applied. Only weak memory entries and negative signals are recorded.
+
+This ensures the graph never learns a cumulative "do everything" path. The
+learned path is always: initial context → working action → confirmed outcome.
+Intermediate failed attempts are noise, not signal.
+
+```text
+Session: 3 attempts, attempt 3 confirmed
+
+  attempt 1: scale_pool          → rejected → reverted → weight decays
+  attempt 2: add_index           → rejected → reverted → weight decays
+  attempt 3: kill_transaction    → confirmed → weight increases
+
+  Graph learns: timeout → lock_contention → kill_transaction
+  Graph does NOT learn: timeout → scale_pool → add_index → kill_transaction
+```
 
 **Escalation payload** — when a path terminates at an `Escalation` node,
 the system assembles a structured handoff context rather than a bare message.
