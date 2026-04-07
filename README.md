@@ -208,6 +208,10 @@ answers HTTP/API queries by keyword lookup with an optional reasoning trace.
 the graph by spreading activation through edges, producing ranked candidates
 with confidence scores rather than direct keyword matches.
 
+The Rust binary is the reference implementation. The knowledge file format
+(JSON) and the reasoning spec are language-agnostic — implementations in any
+language are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
 See [docs/roadmap.md](docs/roadmap.md) for all 13 phases and checkpoints.
 
 ---

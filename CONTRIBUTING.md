@@ -20,6 +20,7 @@ This distinction matters for contributions:
 | Refactoring within spec | Yes | Standard PR |
 | New seed knowledge / domain graphs | Yes | Standard PR |
 | Spec clarifications (typos, ambiguous wording) | Yes | Standard PR |
+| **Alternative language implementation** | **Yes** | **See below** |
 | Design changes to docs/ | Rarely | Discussion first — see below |
 
 ---
@@ -59,6 +60,30 @@ A design change is appropriate only when:
 Changes that reframe the architecture, add new phases, or alter core formulas
 (activation propagation, reinforcement rules, latent node discovery) require
 a higher bar of justification and will be reviewed carefully.
+
+---
+
+## Alternative language implementations
+
+The Rust binary is the **reference implementation**. The knowledge file format
+(JSON) and the reasoning spec ([architecture.md](docs/architecture.md)) are
+language-agnostic. An implementation in PHP, Go, JS/TS, Java, C#, or any
+other language is a first-class contribution — not a fork or a workaround.
+
+A valid alternative implementation must:
+
+- Load the same `knowledge/` JSON file format without modification
+- Produce identical reasoning results for identical inputs (same input → same path)
+- Implement the data structures defined in [architecture.md](docs/architecture.md)
+- Respect the privacy boundary: input text discarded at the tokeniser, nothing downstream stores strings
+
+It does not need to implement every phase at once. A Phase 1 keyword-lookup
+implementation in Go is a valid contribution. Partial implementations are
+welcome as long as the implemented phases are correct and the roadmap phase
+is clearly stated in the README of the implementation directory.
+
+Place alternative implementations in a top-level directory named after the
+language, e.g. `engram-go/`, `engram-js/`, alongside the reference `app/`.
 
 ---
 
