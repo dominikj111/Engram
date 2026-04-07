@@ -192,7 +192,7 @@ The combination that does not exist elsewhere: a dialogue layer with structural 
 | [architecture.md](docs/architecture.md) | Data structures, query pipeline, activation-as-attention |
 | [disambiguation.md](docs/disambiguation.md) | Breaking questions, path labeling, goal tracking |
 | [learning.md](docs/learning.md) | Reinforcement learning, latent discovery, weak memory, user profiles |
-| [roadmap.md](docs/roadmap.md) | All 13 development phases with checkpoints and deliverables |
+| [roadmap.md](docs/roadmap.md) | All 15 development phases (Phase 0–14) with checkpoints and deliverables |
 | [future.md](docs/future.md) | System comparison vs LLMs, future directions, sparse MoE framing |
 | [storage.md](docs/storage.md) | CLI behavior and knowledge file layout |
 | [metrics.md](docs/metrics.md) | Sizing budget and production outcome metrics |
@@ -212,7 +212,7 @@ The Rust binary is the reference implementation. The knowledge file format
 (JSON) and the reasoning spec are language-agnostic — implementations in any
 language are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-See [docs/roadmap.md](docs/roadmap.md) for all 13 phases and checkpoints.
+See [docs/roadmap.md](docs/roadmap.md) for all 15 phases (Phase 0–14) and checkpoints.
 
 ---
 
@@ -249,10 +249,11 @@ Goodbye.
 
 A seed HTTP/API knowledge graph ships with the repo — 19 nodes, 17 edges,
 covering the most common status codes, CORS, timeouts, rate limits, and SSL
-errors. Pass `--explain` to see the reasoning trace:
+errors. Pass `--explain` at startup to see the reasoning trace on every answer:
 
 ```text
-engram> cors blocked --explain
+$ cargo run -- --explain
+engram> cors blocked
 CORS error — ...
 
   path:  fix_cors

@@ -200,20 +200,20 @@ struct Node {
 
 Node kinds:
 
-| Kind           | Description                                              |
-| -------------- | -------------------------------------------------------- |
-| `Concept`      | A domain term or context anchor                          |
-| `Question`     | A breaking or clarifying question node                   |
-| `Solution`     | A leaf node with a text answer or typed action contract  |
-| `Latent`       | Auto-discovered hidden concept                           |
-| `Escalation`   | Path terminus that exports structured context for handoff|
+| Kind           | Description                                                                  |
+| -------------- | ---------------------------------------------------------------------------- |
+| `Concept`      | A domain term or context anchor                                              |
+| `Question`     | A breaking or clarifying question node                                       |
+| `Solution`     | A leaf node with a text answer or typed action contract                      |
+| `Latent`       | Auto-discovered hidden concept                                               |
+| `Escalation`   | Path terminus that exports structured context for handoff — planned Phase 12 |
 
 ### 3.3 Edge Structure
 
 ```rust
 struct Edge {
-    source:      u32,
-    target:      u32,
+    src:         u32,
+    dst:         u32,
     weight:      f32,      // [0.0, 1.0] — path strength
     confidence:  f32,      // [0.0, 1.0] — reliability estimate
     usage_count: u32,

@@ -105,6 +105,6 @@ conversational record.
 | [storage.md](storage.md) | §12 CLI Behavior, §13 Memory Layout |
 | [knowledge.md](knowledge.md) | §14 Initial Knowledge Base, §15 Automatic Context Expansion, §15.5 Noise Handling, §16 Context Bias |
 | [metrics.md](metrics.md) | §17 Expected System Size, §17.5 Outcome Metrics |
-| [roadmap.md](roadmap.md) | §18 Development Phases — all phases 0 through 13 including Phase 13 sub-sections and both summary tables |
+| [roadmap.md](roadmap.md) | §18 Development Phases — all phases 0 through 14 including Phase 13 sub-sections and both summary tables |
 | [future.md](future.md) | §19 System Comparison, §20 Future Directions (§20.1–§20.11 including §20.5.1), §21 Summary |
 | [use_cases.md](use_cases.md) | Detailed deployment context descriptions for all five primary use cases |
