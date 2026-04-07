@@ -254,6 +254,27 @@ Resolving device_id:
 This is where most bots feel dumb — they ask for information they could
 derive. The resolution chain makes the derivation explicit and auditable.
 
+**Proactive context sweep** — `BackendPrefill` is not limited to parameter
+resolution. Before asking the user any breaking question, the engine can run
+a predefined set of context-fetch actions to pre-populate session context:
+
+```text
+Session starts: "service is down"
+  → proactive sweep:
+      FetchLastLogLines(n=10)    → activates: error=timeout, service=auth
+      RunHealthCheck()           → activates: database=unreachable
+      FetchServiceStatus()       → activates: dependency=payment_gateway, status=degraded
+  → graph activation with pre-fetched context
+  → path narrows to: database_connectivity_issue  [confidence: 0.84]
+  → no breaking questions needed — context was sufficient
+```
+
+The sweep is defined as a list of zero-argument context actions on the
+knowledge graph. Each result maps to concept node activations via the same
+adapter pattern as any other event. Breaking questions only fire if the
+swept context still leaves the path ambiguous — the user is the last resort,
+not the first.
+
 **Escalation payload** — when a path terminates at an `Escalation` node,
 the system assembles a structured handoff context rather than a bare message.
 This eliminates the most common support frustration: being asked to repeat
@@ -394,25 +415,34 @@ can be updated without rebuilding the graph.
 
 ## 3.7 Deployment Configuration Matrix
 
-Every Engram deployment independently locks or opens three axes:
+Every Engram deployment independently locks or opens four axes:
 
 - **Context nodes** — whether new concept/solution nodes can be added at runtime
 - **Actions** — whether new action contracts can be registered at runtime
 - **Graph** — whether edge weights and connections learn from live session outcomes
+- **Input mode** — whether breaking question responses accept only listed branch choices (`Constrained`) or any free-form input processed through the tokeniser (`Open`)
 
-Each axis is binary. The eight combinations cover the full range of deployment
-characters:
+The first three axes govern what the graph can become. The fourth governs how users interact with it during a session.
 
-| Context | Actions | Graph | Character | Natural use case |
-| ------- | ------- | ----- | --------- | ---------------- |
-| Locked | Locked | Locked | Pure inference — frozen, fully auditable | Compliance routing, regulated environments |
-| Locked | Locked | Learning | Stable domain, self-optimising paths | Industrial agent, support bot |
-| Locked | Open | Locked | New actions proposed, fixed routing | Operator-extended tool dispatch |
-| Locked | Open | Learning | New actions discovered and reinforced | Evolving automation pipelines |
-| Open | Locked | Locked | LLM extends vocabulary, fixed actions | LLM-curated knowledge, deterministic execution |
-| Open | Locked | Learning | LLM extends vocabulary, paths self-optimise | LLM-assisted knowledge distillation |
-| Open | Open | Locked | Full LLM authoring, fixed wiring | Rapid knowledge capture, manual graph review |
-| Open | Open | Learning | Fully adaptive — LLM teaches graph at every layer | Shareable LLM memory artifact |
+**Input mode detail:**
+
+| Mode | Breaking question accepts | Best for |
+| --- | --- | --- |
+| `Constrained` | Only listed branch choices (yes/no, numbered options) | Voice assistants, compliance routing, call-centre co-pilots — predictable paths, no ambiguous input |
+| `Open` | Any input — free text, pasted log lines, error messages, file content — tokenised and activated as additional context | Developer tools, technical diagnostics, LLM mesh — richer context yields better path narrowing |
+
+In `Open` mode, a user who pastes a stack trace instead of answering "is it intermittent?" is not breaking the flow — the tokeniser processes the paste and updates the activation vector, potentially resolving the ambiguity without a formal answer at all.
+
+The four axes combine to 16 deployment configurations. The three graph axes from the original matrix remain valid independently of input mode — the table below shows representative combinations rather than all 16:
+
+| Context | Actions | Graph | Input | Character | Natural use case |
+| ------- | ------- | ----- | ----- | --------- | ---------------- |
+| Locked | Locked | Locked | Constrained | Pure inference, fully auditable, controlled UX | Compliance routing, regulated environments, voice |
+| Locked | Locked | Locked | Open | Pure inference, auditable, developer-friendly | CLI tools, technical diagnostics |
+| Locked | Locked | Learning | Constrained | Stable domain, self-optimising, predictable UX | Industrial agent, support bot, IVR |
+| Locked | Locked | Learning | Open | Stable domain, self-optimising, rich input | On-call tooling, developer assistants |
+| Open | Locked | Learning | Open | LLM extends vocabulary, paths self-optimise | LLM-assisted knowledge distillation |
+| Open | Open | Learning | Open | Fully adaptive — LLM teaches graph at every layer | Shareable LLM memory artifact |
 
 **Locking mechanics:** each axis has a corresponding flag in the deployment
 configuration. Locked axes reject write operations at the API boundary — no
