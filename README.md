@@ -152,6 +152,11 @@ application code.
 The same engine supports both. Which mode a deployment uses is a configuration
 decision, not an architectural one.
 
+More precisely, there are three independently lockable axes — context nodes,
+actions, and graph learning — giving eight deployment configurations from fully
+frozen to fully adaptive. See [architecture.md §3.7](docs/architecture.md) for
+the full matrix and the provisional node mechanism that makes open axes safe.
+
 ---
 
 ## Prior Art

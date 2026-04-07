@@ -392,6 +392,47 @@ can be updated without rebuilding the graph.
 
 ---
 
+## 3.7 Deployment Configuration Matrix
+
+Every Engram deployment independently locks or opens three axes:
+
+- **Context nodes** — whether new concept/solution nodes can be added at runtime
+- **Actions** — whether new action contracts can be registered at runtime
+- **Graph** — whether edge weights and connections learn from live session outcomes
+
+Each axis is binary. The eight combinations cover the full range of deployment
+characters:
+
+| Context | Actions | Graph | Character | Natural use case |
+| ------- | ------- | ----- | --------- | ---------------- |
+| Locked | Locked | Locked | Pure inference — frozen, fully auditable | Compliance routing, regulated environments |
+| Locked | Locked | Learning | Stable domain, self-optimising paths | Industrial agent, support bot |
+| Locked | Open | Locked | New actions proposed, fixed routing | Operator-extended tool dispatch |
+| Locked | Open | Learning | New actions discovered and reinforced | Evolving automation pipelines |
+| Open | Locked | Locked | LLM extends vocabulary, fixed actions | LLM-curated knowledge, deterministic execution |
+| Open | Locked | Learning | LLM extends vocabulary, paths self-optimise | LLM-assisted knowledge distillation |
+| Open | Open | Locked | Full LLM authoring, fixed wiring | Rapid knowledge capture, manual graph review |
+| Open | Open | Learning | Fully adaptive — LLM teaches graph at every layer | Shareable LLM memory artifact |
+
+**Locking mechanics:** each axis has a corresponding flag in the deployment
+configuration. Locked axes reject write operations at the API boundary — no
+silent mutation. Open axes accept writes but route new nodes and actions through
+the provisional state (see §11 Weak Memory) until confirmed by sufficient sessions.
+
+**Provisional nodes from LLM authoring:** when context or actions are open, an LLM
+can propose new nodes via `engram.add_node()` / `engram.add_action()`. These enter
+as `NodeKind::Latent` with zero confirmed sessions — visible in `--explain` and
+`engram latent`, but below any confidence threshold until independently validated.
+They earn weight through subsequent session confirmations, the same as any other path.
+
+**The shareable artifact property:** the fully-open configuration (bottom row) means
+an LLM reasoning with Engram over many sessions produces a portable, versioned,
+human-inspectable knowledge graph encoding what it learned. That graph can be
+exported, shared, merged with another instance's graph, audited, or rolled back —
+a durable memory artifact, not a context window that resets.
+
+---
+
 ## 4. Question Processing Pipeline
 
 Input:
