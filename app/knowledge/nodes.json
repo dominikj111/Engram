@@ -1,1 +1,21 @@
-[]
+[
+  {"id": 1,  "label": "http",              "kind": "Concept",  "tags": ["http", "api"]},
+  {"id": 2,  "label": "api",               "kind": "Concept",  "tags": ["http", "api"]},
+  {"id": 3,  "label": "request",           "kind": "Concept",  "tags": ["http", "api"]},
+  {"id": 4,  "label": "response",          "kind": "Concept",  "tags": ["http", "api"]},
+  {"id": 5,  "label": "error",             "kind": "Concept",  "tags": ["http", "api", "error"]},
+  {"id": 6,  "label": "auth",              "kind": "Concept",  "tags": ["http", "auth"]},
+  {"id": 7,  "label": "cors",              "kind": "Concept",  "tags": ["http", "cors", "browser"]},
+  {"id": 8,  "label": "timeout",           "kind": "Concept",  "tags": ["http", "network", "timeout"]},
+  {"id": 9,  "label": "rate_limit",        "kind": "Concept",  "tags": ["http", "api", "limit"]},
+  {"id": 10, "label": "status_code",       "kind": "Concept",  "tags": ["http", "status"]},
+  {"id": 11, "label": "header",            "kind": "Concept",  "tags": ["http", "header"]},
+  {"id": 20, "label": "fix_401",           "kind": "Solution", "tags": ["http", "auth", "401", "unauthorized"]},
+  {"id": 21, "label": "fix_403",           "kind": "Solution", "tags": ["http", "auth", "403", "forbidden"]},
+  {"id": 22, "label": "fix_404",           "kind": "Solution", "tags": ["http", "api", "404", "not_found", "missing"]},
+  {"id": 23, "label": "fix_429",           "kind": "Solution", "tags": ["http", "rate_limit", "429", "throttle", "throttled"]},
+  {"id": 24, "label": "fix_500",           "kind": "Solution", "tags": ["http", "server", "500", "internal"]},
+  {"id": 25, "label": "fix_cors",          "kind": "Solution", "tags": ["http", "cors", "cross", "origin", "blocked"]},
+  {"id": 26, "label": "fix_timeout",       "kind": "Solution", "tags": ["http", "timeout", "slow", "hung", "hanging"]},
+  {"id": 27, "label": "fix_ssl",           "kind": "Solution", "tags": ["http", "ssl", "tls", "certificate", "cert", "https"]}
+]

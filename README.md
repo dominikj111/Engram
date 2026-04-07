@@ -5,6 +5,8 @@
 > *Engrams are defined as the physical changes in brain state induced by an
 > event, serving as the memory trace.*
 
+**Jump to:** [What it is](#what-engram-is) · [Use cases](#use-cases) · [How it learns](#how-the-graph-learns--privacy-by-architecture) · [Quick start](#quick-start) · [Prior art](#prior-art)
+
 ---
 
 ## What Engram is
@@ -199,12 +201,12 @@ The combination that does not exist elsewhere: a dialogue layer with structural 
 
 ## Status
 
-**Phase 0 complete.** The Rust binary compiles and runs. Data structures,
-file I/O, and the knowledge directory layout are in place.
+**Phase 1 complete.** The binary compiles, loads a real knowledge graph, and
+answers HTTP/API queries by keyword lookup with an optional reasoning trace.
 
-**Next:** Phase 1 (keyword lookup against seed data) and Phase 2 (graph
-activation and propagation) — the system becomes demonstrably useful at
-Phase 2, navigating a real domain graph with a full reasoning trace.
+**Next:** Phase 2 (graph activation and propagation) — the system navigates
+the graph by spreading activation through edges, producing ranked candidates
+with confidence scores rather than direct keyword matches.
 
 See [docs/roadmap.md](docs/roadmap.md) for all 13 phases and checkpoints.
 
@@ -222,17 +224,39 @@ cargo run
 ```
 
 ```text
-engram v0.1.0 — knowledge loaded: 0 nodes, 0 edges
-engram> Hello
-[phase 0] reasoning not yet implemented
-query received: Hello
+engram v0.1.0 — knowledge loaded: 19 nodes, 17 edges
+engram> 401 unauthorized
+401 Unauthorized — the request lacks valid authentication. Check that your
+token or API key is present, not expired, and sent in the correct header
+(usually Authorization: Bearer <token>).
+
+engram> cors blocked
+CORS error — the browser blocked the request because the server did not
+include the required Access-Control-Allow-Origin header. Add CORS middleware
+on the server, or configure it to allow your origin explicitly.
+
+engram> my api keeps getting 429
+429 Too Many Requests — the rate limit has been exceeded. Back off and retry
+after the duration in the Retry-After header.
+
 engram> exit
 Goodbye.
 ```
 
-The reasoning is a stub at Phase 0 — that is expected. The CLI surface,
-data structures, file I/O, and knowledge directory layout are already in
-place. The subcommands reflect the full architecture:
+A seed HTTP/API knowledge graph ships with the repo — 19 nodes, 17 edges,
+covering the most common status codes, CORS, timeouts, rate limits, and SSL
+errors. Pass `--explain` to see the reasoning trace:
+
+```text
+engram> cors blocked --explain
+CORS error — ...
+
+  path:  fix_cors
+  score: 3.76
+  via:   fix_cors → cors
+```
+
+The subcommands reflect the full architecture:
 
 ```text
 $ cargo run -- --help

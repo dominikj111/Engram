@@ -1,1 +1,34 @@
-[]
+[
+  {
+    "node_id": 20,
+    "text": "401 Unauthorized — the request lacks valid authentication. Check that your token or API key is present, not expired, and sent in the correct header (usually Authorization: Bearer <token>)."
+  },
+  {
+    "node_id": 21,
+    "text": "403 Forbidden — the server understood the request but refuses to authorise it. Your credentials are valid but lack the required permissions. Check roles, scopes, or resource-level access controls."
+  },
+  {
+    "node_id": 22,
+    "text": "404 Not Found — the resource does not exist at this URL. Check for typos in the path, verify the resource was created, and confirm you are hitting the correct environment (dev/staging/prod)."
+  },
+  {
+    "node_id": 23,
+    "text": "429 Too Many Requests — the rate limit has been exceeded. Back off and retry after the duration specified in the Retry-After header. Consider caching responses or batching requests to stay within limits."
+  },
+  {
+    "node_id": 24,
+    "text": "500 Internal Server Error — the server encountered an unexpected condition. Check server logs for the stack trace. This is a bug on the server side, not the client."
+  },
+  {
+    "node_id": 25,
+    "text": "CORS error — the browser blocked the request because the server did not include the required Access-Control-Allow-Origin header. Add CORS middleware on the server, or configure it to allow your origin explicitly."
+  },
+  {
+    "node_id": 26,
+    "text": "Request timed out — the server did not respond within the allowed window. Check for slow database queries, downstream service latency, or network issues. Increase timeout thresholds only after diagnosing the root cause."
+  },
+  {
+    "node_id": 27,
+    "text": "SSL/TLS error — the certificate is invalid, expired, or untrusted. Verify the certificate chain, check the expiry date, and ensure the hostname matches the certificate's Common Name or SAN."
+  }
+]
