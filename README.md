@@ -157,6 +157,12 @@ actions, and graph learning — giving eight deployment configurations from full
 frozen to fully adaptive. See [architecture.md §3.7](docs/architecture.md) for
 the full matrix and the provisional node mechanism that makes open axes safe.
 
+**Inspecting the graph:** the graph files are plain JSON — readable with any
+tool today. The planned Phase 14 milestone adds a visual connectome inspector:
+load a knowledge directory, watch activation propagate from a query to a
+solution node, click any edge to inspect its weight and session history.
+See [roadmap.md](docs/roadmap.md) for details.
+
 ---
 
 ## Prior Art

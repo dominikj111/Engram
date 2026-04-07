@@ -600,19 +600,50 @@ texts are already computed; this is purely a new output format path.
 
 ### Summary of Phase Deliverables
 
-| Phase | Capability added                              | Inspectable artifact          |
-| ----- | --------------------------------------------- | ----------------------------- |
-| 0     | Compilable skeleton, file I/O                 | Binary runs, JSON layout      |
-| 1     | Static keyword lookup from seed data          | Direct answers from seed      |
-| 2     | Graph propagation with activation trace       | `--explain` hop-by-hop scores |
-| 3     | Single yes/no clarification                   | Interactive question flow     |
-| 4     | Multi-branch breaking questions               | Full decomposition tree       |
-| 5     | Named path recording with tags                | `paths.json`                  |
-| 6     | Path cache for fast re-resolution             | Cache hit/miss in output      |
-| 7     | Session history with audit trail              | `sessions.json`, `--history`  |
-| 8     | Reinforcement — graph improves with use       | Evolving `edges.json`         |
-| 9     | Weak memory — mistakes stored and corrected   | `weak_memory.json`, `--weak`  |
-| 10    | Latent node discovery                         | `--latent` review list        |
-| 11    | Automatic context expansion                   | `--provisional` list          |
-| 12    | Bias tuning, exploration noise, audit         | `--audit` report              |
-| **13**| **BM25 + n-grams + context carry + composite**| **Near-LLM quality on domain queries** |
+| Phase  | Capability added                                 | Inspectable artifact                               |
+| ------ | ------------------------------------------------ | -------------------------------------------------- |
+| 0      | Compilable skeleton, file I/O                    | Binary runs, JSON layout                           |
+| 1      | Static keyword lookup from seed data             | Direct answers from seed                           |
+| 2      | Graph propagation with activation trace          | `--explain` hop-by-hop scores                      |
+| 3      | Single yes/no clarification                      | Interactive question flow                          |
+| 4      | Multi-branch breaking questions                  | Full decomposition tree                            |
+| 5      | Named path recording with tags                   | `paths.json`                                       |
+| 6      | Path cache for fast re-resolution                | Cache hit/miss in output                           |
+| 7      | Session history with audit trail                 | `sessions.json`, `--history`                       |
+| 8      | Reinforcement — graph improves with use          | Evolving `edges.json`                              |
+| 9      | Weak memory — mistakes stored and corrected      | `weak_memory.json`, `--weak`                       |
+| 10     | Latent node discovery                            | `--latent` review list                             |
+| 11     | Automatic context expansion                      | `--provisional` list                               |
+| 12     | Bias tuning, exploration noise, audit            | `--audit` report                                   |
+| **13** | **BM25 + n-grams + context carry + composite**   | **Near-LLM quality on domain queries**             |
+| **14** | **Connectome inspector — visual graph explorer** | **Interactive activation replay, edge inspection** |
+
+---
+
+### Phase 14 — Connectome Inspector
+
+**Goal:** A visual, interactive view of the knowledge graph. The graph files are
+already plain JSON — this phase adds a reader that makes the structure visceral
+rather than textual.
+
+Deliverables:
+
+- Load any `knowledge/` directory and render the graph as an interactive node-edge diagram
+- Click any node to inspect: label, kind, tags, activation score, connected edges
+- Click any edge to inspect: weight, confidence, usage count, path labels
+- Replay a session: watch activation propagate from query tokens to solution node, hop by hop
+- Watch edge weights shift live after a confirmed or rejected session
+- Ships as the `diagram/` web app (React, builds from the existing codebase)
+
+Checkpoint:
+
+```text
+Load knowledge/rust_errors/ → graph renders
+Click borrow_checker → edges: mutable_reference_conflict (0.81), lifetime_mismatch (0.63)
+Submit query "rust borrow error" → activation propagates visually to solution node
+Confirm session → borrow_checker→mutable_reference_conflict weight increments in view
+```
+
+What this phase gives you: the demo that makes Engram legible to anyone. Reading
+the docs explains the system; watching activation propagate through a real graph makes
+it immediate. The connectome inspector is the thing that gets shared.

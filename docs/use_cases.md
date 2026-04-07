@@ -54,9 +54,12 @@ bolted on later.
 
 ## 1. Team Knowledge Distillation
 
-**The problem:** Team knowledge lives in chat logs — Slack threads, ticket comments, meeting
-notes. It is noisy, personal, and hard to query. Most of it is social glue ("sounds good",
-"let me check") wrapping a small core of factual decisions.
+**The problem:** Teams write down knowledge as markdown — runbooks, wikis, confluence
+pages. Those documents are static text: the knowledge is implicit in the prose, requires
+reading and interpretation to use, and drifts out of date silently. An LLM reading a
+markdown runbook hopes to extract the right rule. An Engram graph *is* the rule —
+machine-readable, typed, directly executable, and self-correcting from session outcomes.
+No interpretation layer. No hallucination surface. No wiki rot.
 
 **What Engram stores instead:** Every session that reaches a confirmed solution reinforces
 a reasoning path in the graph. The graph accumulates *what the team collectively confirmed
