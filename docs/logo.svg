@@ -37,7 +37,7 @@
        y1="8.4453545"
        x2="39.806946"
        y2="47.41478"
-       gradientTransform="matrix(0.68403271,0,0,0.643821,6.7140433,-2.9104467)"
+       gradientTransform="matrix(0.77188602,0,0,0.72650974,2.582296,1.6038506)"
        gradientUnits="userSpaceOnUse">
       <stop
          offset="0%"
@@ -50,13 +50,13 @@
     </linearGradient>
   </defs>
   <text
-     x="6.7140431"
-     y="27.616177"
+     x="2.5822959"
+     y="36.051144"
      font-family="system-ui, '-apple-system', sans-serif"
-     font-size="34.5084px"
+     font-size="38.9405px"
      font-weight="900"
      fill="url(#g)"
      id="text2"
      style="fill:url(#g);stroke-width:1"
-     transform="scale(0.97016199,1.0307557)">Δ</text>
+     transform="scale(1.0947641,0.91343878)">Δ</text>
 </svg>
