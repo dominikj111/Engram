@@ -452,21 +452,24 @@ paths.
 
 ### Summary of Phase Deliverables
 
-| Phase | Capability added                              | Inspectable artifact          |
-| ----- | --------------------------------------------- | ----------------------------- |
-| 0     | Compilable skeleton, file I/O                 | Binary runs, JSON layout      |
-| 1     | Static keyword lookup from seed data          | Direct answers from seed      |
-| 2     | Graph propagation with activation trace       | `--explain` hop-by-hop scores |
-| 3     | Single yes/no clarification                   | Interactive question flow     |
-| 4     | Multi-branch breaking questions               | Full decomposition tree       |
-| 5     | Named path recording with tags                | `paths.json`                  |
-| 6     | Path cache for fast re-resolution             | Cache hit/miss in output      |
-| 7     | Session history with audit trail              | `sessions.json`, `--history`  |
-| 8     | Reinforcement — graph improves with use       | Evolving `edges.json`         |
-| 9     | Weak memory — mistakes stored and corrected   | `weak_memory.json`, `--weak`  |
-| 10    | Latent node discovery                         | `--latent` review list        |
-| 11    | Automatic context expansion                   | `--provisional` list          |
-| 12    | Bias tuning, exploration noise, audit         | `--audit` report              |
+| Phase  | Capability added                                 | Inspectable artifact                               |
+| ------ | ------------------------------------------------ | -------------------------------------------------- |
+| 0      | Compilable skeleton, file I/O                    | Binary runs, JSON layout                           |
+| 1      | Static keyword lookup from seed data             | Direct answers from seed                           |
+| 2      | Graph propagation with activation trace          | `--explain` hop-by-hop scores                      |
+| 3      | Single yes/no clarification                      | Interactive question flow                          |
+| 4      | Multi-branch breaking questions                  | Full decomposition tree                            |
+| 5      | Named path recording with tags                   | `paths.json`                                       |
+| 6      | Path cache for fast re-resolution                | Cache hit/miss in output                           |
+| 7      | Session history with audit trail                 | `sessions.json`, `--history`                       |
+| 8      | Reinforcement — graph improves with use          | Evolving `edges.json`                              |
+| 9      | Weak memory — mistakes stored and corrected      | `weak_memory.json`, `--weak`                       |
+| 10     | Latent node discovery                            | `--latent` review list                             |
+| 11     | Automatic context expansion                      | `--provisional` list                               |
+| 12     | Bias tuning, exploration noise, audit            | `--audit` report                                   |
+| **13** | **BM25 + n-grams + context carry + composite**   | **Near-LLM quality on domain queries**             |
+| **14** | **Connectome inspector — visual graph explorer** | **Interactive activation replay**                  |
+| **15** | **Storage backend abstraction**                  | **Deploy against file, database, REST, or socket** |
 
 ---
 
@@ -598,7 +601,7 @@ texts are already computed; this is purely a new output format path.
 
 ---
 
-### Summary of Phase Deliverables
+### Full Phase Deliverables Summary
 
 | Phase  | Capability added                                 | Inspectable artifact                               |
 | ------ | ------------------------------------------------ | -------------------------------------------------- |
@@ -617,6 +620,7 @@ texts are already computed; this is purely a new output format path.
 | 12     | Bias tuning, exploration noise, audit            | `--audit` report                                   |
 | **13** | **BM25 + n-grams + context carry + composite**   | **Near-LLM quality on domain queries**             |
 | **14** | **Connectome inspector — visual graph explorer** | **Interactive activation replay, edge inspection** |
+| **15** | **Storage backend abstraction**                  | **Deploy against file, database, REST, or socket** |
 
 ---
 
@@ -647,3 +651,61 @@ Confirm session → borrow_checker→mutable_reference_conflict weight increment
 What this phase gives you: the demo that makes Engram legible to anyone. Reading
 the docs explains the system; watching activation propagate through a real graph makes
 it immediate. The connectome inspector is the thing that gets shared.
+
+---
+
+### Phase 15 — Storage Backend Abstraction
+
+**Goal:** Decouple the graph engine from the filesystem. Today every knowledge
+structure — nodes, edges, paths, sessions — lives in JSON files under a local
+`knowledge/` directory. Phase 15 introduces a `GraphStore` trait so the same
+reasoning engine can read and write graphs from files, an in-memory store, a
+REST API, a database, or a socket stream without changing any traversal code.
+
+Deliverables:
+
+- Define `GraphStore` trait with the minimal surface area the engine actually
+  uses: `load_nodes`, `load_edges`, `save_edges`, `load_paths`, `save_path`,
+  `load_sessions`, `append_session`
+- Implement `FileStore` — wraps current JSON file I/O, default and reference
+  implementation, zero behaviour change for existing users
+- Implement `MemoryStore` — in-process store seeded from a static slice or
+  built programmatically; primary target for unit tests and embedded deployments
+- Implement `RestApiStore` — HTTP GET/PUT/POST against a configurable base URL;
+  enables remote graph servers and multi-agent read access
+- Implement `DatabaseStore` (SQLite as default target) — structured queries,
+  transactional writes, suited for high-session-count production deployments
+- Implement `SocketStore` — streaming interface for live-updated graphs fed by
+  an external process (sensor data, log tailing, agent federation)
+- Configuration: store backend selectable via CLI flag or config file; no
+  source-level change required to switch deployment topology
+
+Checkpoint:
+
+```text
+# file backend (default, unchanged behaviour)
+engram query "rust borrow error" --store file://knowledge/rust_errors/
+
+# in-memory backend seeded at startup (tests, CI)
+engram query "rust borrow error" --store memory
+
+# REST backend (remote graph server)
+engram query "rust borrow error" --store http://graph-server.internal/api/rust
+
+# database backend (production, audit logs)
+engram query "rust borrow error" --store sqlite://./engram.db
+
+# socket backend (live-updated graph)
+engram query "rust borrow error" --store socket://localhost:9000
+```
+
+All five commands produce identical query output. The store choice is an
+infrastructure decision, not a behaviour change.
+
+What this phase gives you: deployment flexibility without forking the codebase.
+A CI pipeline can run tests against `MemoryStore` seeded with fixtures.
+An industrial agent can persist to a database for transactional audit trails.
+A federated deployment can expose its graph via REST so peer instances can
+read — and eventually merge — knowledge without filesystem coupling. The trait
+boundary also makes the storage layer independently testable and replaceable
+as requirements grow.
