@@ -1,5 +1,5 @@
 {
     "chat.tools.terminal.autoApprove": {
-        "./target/debug/chattie": true
+        "./target/debug/engram": true
     }
 }
