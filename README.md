@@ -1,4 +1,5 @@
-# Engram
+<!-- markdownlint-disable-next-line MD033 -->
+# <img src="docs/logo.svg" alt="Δ" height="48" align="center"> Engram
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -149,7 +150,7 @@ automatically as the session population grows.
 
 ## Graph Deployment Modes
 
-The graph is a file on disk. Write-back is a deliberate per-deployment choice, not a
+The graph is a file on disk today. Write-back is a deliberate per-deployment choice, not a
 system default. This gives two distinct operating modes:
 
 **Continuous learning** — sessions write back to the graph in real time. Edge weights
@@ -165,6 +166,11 @@ application code.
 
 The same engine supports both. Which mode a deployment uses is a configuration
 decision, not an architectural one.
+
+Phase 15 introduces a `GraphStore` trait that decouples the engine from the
+filesystem entirely — the same reasoning engine will read and write graphs from
+JSON files, an in-memory store, a REST API, a database, or a socket stream
+without changing any traversal code. See [roadmap.md](docs/roadmap.md) for details.
 
 More precisely, there are four independently lockable axes — context nodes,
 actions, graph learning, and input mode — giving 16 deployment configurations from
