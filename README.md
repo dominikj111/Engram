@@ -1,5 +1,4 @@
-<!-- markdownlint-disable-next-line MD033 -->
-# <img src="docs/logo.svg" alt="Δ" height="48" align="center"> Engram
+# Δ Engram
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
