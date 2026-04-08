@@ -11,9 +11,9 @@
 
 ## What Engram is
 
-Engram is a **deterministic reasoning kernel** — symbolic AI with hard boundaries and
-fluid internals. The nodes and actions are fixed by design; what learns over time are
-the connections between them. Given a context, Engram navigates a directed graph of
+Engram is a **deterministic reasoning kernel** — symbolic AI, a finite state machine,
+with configurable boundaries and self-improving weights. The nodes and actions are fixed
+by design; what learns over time are the connections between them. Given a context, Engram navigates a directed graph of
 concepts, asks targeted **breaking questions** to resolve ambiguity, and emits typed
 **action contracts** that a separate execution layer runs. Every path is auditable,
 every weight is named, and the system improves without retraining — not by inventing
@@ -26,7 +26,7 @@ The design makes specific trade-offs that most AI tooling deliberately avoids:
 | Same input → guaranteed same output | No — stochastic by design | Yes — deterministic graph traversal |
 | Full reasoning trace, auditable to each step | No | Yes — every node and edge is named |
 | Runs fully offline, no runtime dependency | Needs runtime / server | Yes — single binary, no network |
-| Improves from session feedback without retraining | No — requires new fine-tune | Yes — edge weights update in real time |
+| Improves from session feedback without retraining | No — requires new fine-tune | Configurable — locked for frozen inference, or real-time edge weight updates when open |
 | Stores patterns, never raw content | Depends on deployment | Structural — raw data never exists in transmittable form |
 | Domain knowledge independently ownable per team | No — entangled in weights | Yes — separate graph files, swappable |
 
@@ -154,9 +154,9 @@ application code.
 The same engine supports both. Which mode a deployment uses is a configuration
 decision, not an architectural one.
 
-More precisely, there are three independently lockable axes — context nodes,
-actions, and graph learning — giving eight deployment configurations from fully
-frozen to fully adaptive. See [architecture.md §3.7](docs/architecture.md) for
+More precisely, there are four independently lockable axes — context nodes,
+actions, graph learning, and input mode — giving 16 deployment configurations from
+fully frozen to fully adaptive. See [architecture.md §3.7](docs/architecture.md) for
 the full matrix and the provisional node mechanism that makes open axes safe.
 
 **Inspecting the graph:** the graph files are plain JSON — readable with any
