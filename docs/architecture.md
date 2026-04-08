@@ -662,3 +662,254 @@ adapter can render uncertainty visibly:
 
 Confidence is never hidden from the user. A system that knows it is uncertain
 and says so is more trustworthy than one that projects false certainty.
+
+---
+
+## 5. Engram as a Confidence-Weighted Deterministic Finite State Machine
+
+Engram is not merely *inspired* by automata theory — it is structurally an FSM
+with two properties that extend the classical model.
+
+### 5.1 The Classical FSM Correspondence
+
+A classical deterministic FSM is defined as a 5-tuple:
+
+```text
+M = (Q, Σ, δ, q₀, F)
+```
+
+Where:
+
+- `Q` — finite set of states
+- `Σ` — input alphabet
+- `δ: Q × Σ → Q` — transition function
+- `q₀` — initial state
+- `F ⊆ Q` — set of accepting states
+
+Engram maps to this exactly:
+
+| FSM component | Engram equivalent |
+| --- | --- |
+| `Q` — states | Graph nodes (`Concept`, `Question`, `Solution`, `Escalation`) |
+| `Σ` — alphabet | Tokenised input (node ID activation vectors) |
+| `δ` — transition function | Weighted edge traversal, resolved by activation ranking |
+| `q₀` — initial state | Context activation from input tokens |
+| `F` — accepting states | `Solution` and `Escalation` leaf nodes |
+
+The `SessionState` enum (`Active → AwaitingInput → ActionPending → Resolved / Escalated / Abandoned`)
+is the session-level FSM layered on top of the graph-level FSM. Both are deterministic:
+given the same input and the same graph, the same path is always taken.
+
+### 5.2 The Two Extensions
+
+**Extension 1: Confidence-weighted transitions.**
+Classical FSM transitions are binary — a transition either exists or does not. Engram
+edges carry a `weight` and `confidence` score. When multiple transitions are valid from
+the current state, the engine ranks them and selects the highest. This is still
+deterministic (same ranking, same graph, same result) but adds a principled way to
+handle ambiguity that classical FSMs cannot express without explicit branching for every
+possible input.
+
+```text
+Classical FSM:   state A --input x--> state B   (binary — exists or not)
+Engram:          state A --input x--> state B    (weight: 0.81, confidence: 0.75)
+                           --input x--> state C  (weight: 0.43, confidence: 0.51)
+                 → selects B deterministically by ranking
+```
+
+**Extension 2: A self-organising transition table.**
+In a classical FSM, `δ` is fixed at design time. In Engram with the Graph axis open,
+`δ` updates from confirmed session outcomes via the Rescorla-Wagner-inspired learning
+rule. The transition table self-organises — paths that resolve correctly strengthen,
+paths that fail decay — without changing the determinism guarantee. At any point in
+time, given the current weights, the system behaves deterministically.
+
+```text
+Classical FSM:   δ is fixed — designed once, never changes
+Engram (locked): δ is fixed — frozen graph, pure inference, fully auditable
+Engram (open):   δ evolves — edge weights update from sessions, structure is preserved
+```
+
+### 5.3 The Deployment Axis as FSM Configuration
+
+The four deployment axes map precisely onto FSM properties:
+
+| Axis | Locked | Open |
+| --- | --- | --- |
+| Context nodes | Q is fixed — no new states | Q can grow — new nodes enter as provisional states |
+| Actions | F is fixed — no new accepting states | New `Solution` nodes can be added at runtime |
+| Graph | δ is fixed — static transition table | δ evolves — edge weights update from sessions |
+| Input mode | Σ is constrained — listed branch choices only | Σ is open — any input tokenised as context |
+
+A fully locked deployment is a classical FSM with a learned transition table.
+A fully open deployment is an extensible FSM that grows its state space, transition table,
+and accepting states at runtime — all through the same provisional validation mechanism.
+
+### 5.4 Implications
+
+**Formal correctness.** Because Engram is an FSM, it inherits 60 years of formal
+automata theory. Properties like reachability ("can state B ever be reached from state A?"),
+safety ("can an action contract C ever fire from state S?"), and completeness ("are all
+inputs handled?") can be verified statically on the knowledge graph before deployment.
+This is not possible with LLM-based systems.
+
+**Human-machine interface.** Any interface that reduces to: receive input → transition
+state → emit output → wait — is an FSM. Voice interfaces, IVR systems, embedded device
+controllers, CLI tools, and web form flows all fit this model exactly. Engram provides
+a single runtime for all of them, with the same graph driving every surface via the
+`ResponseEnvelope` adapter pattern (§3.5).
+
+**Generic deterministic automation.** The FSM framing makes the scope explicit: Engram
+is applicable to any domain where the problem space is finite (or finitely extensible),
+transitions are deterministic, and outcomes are verifiable. This is a broader class than
+"AI assistant" — it includes industrial controllers, compliance routing, business process
+engines, and protocol state machines.
+
+---
+
+## 6. Storage Backend Abstraction
+
+The current implementation reads graph data from JSON files on disk. This is the right
+default — simple, portable, version-controllable, human-readable — but it couples the
+reasoning engine to a specific storage medium in a way that limits platform flexibility.
+
+### 6.1 The Interface Boundary
+
+The reasoning engine should not know or care where nodes, edges, and paths come from.
+The correct design is a thin storage trait (interface) that the engine calls, with
+concrete implementations behind it:
+
+```text
+ReasoningEngine
+      │
+      ▼
+  GraphStore (trait)
+      │
+      ├── FileStore       — JSON files on disk (current)
+      ├── MemoryStore     — in-process, no persistence (testing, embedded)
+      ├── RestApiStore    — remote Engram instance or graph service over HTTP
+      ├── DatabaseStore   — SQL / key-value / document store
+      └── SocketStore     — Unix socket or named pipe (low-latency IPC)
+```
+
+The engine calls `graph.get_node(id)`, `graph.get_edges(src)`,
+`graph.persist_session(outcome)` — the backing store is resolved at startup from
+the deployment configuration. Switching from file to database requires no engine change.
+
+### 6.2 What This Enables
+
+**Platform deployments.** A `DatabaseStore` backed by PostgreSQL or SQLite makes the
+graph queryable by external tools, auditable via standard SQL, and naturally backed up
+by existing database infrastructure. A `RestApiStore` makes it possible to separate the
+reasoning process from the graph data entirely — useful in multi-tenant or SaaS
+deployments where each tenant owns their graph.
+
+**Live graph updates.** A `RestApiStore` or `SocketStore` can stream graph updates from
+a central authority to running instances without restart. The instance sees weight changes
+the moment they are committed centrally.
+
+**Hybrid stores.** A read-through cache over a remote store: hot nodes in memory, cold
+nodes fetched on demand, writes propagated asynchronously. This is natural once the store
+is an interface.
+
+**Testing and simulation.** A `MemoryStore` pre-loaded with a known graph state allows
+deterministic unit testing of reasoning paths without file system dependency.
+
+### 6.3 Roadmap Note
+
+This is not a Phase 1–8 concern — the file backend is sufficient through the initial
+roadmap. The storage trait should be introduced when the first non-file deployment
+requirement arises (likely a `DatabaseStore` for multi-user or SaaS use). Introducing
+the trait too early would be premature abstraction; introducing it too late would require
+invasive refactoring. The right trigger is the first concrete deployment that cannot be
+satisfied by JSON files.
+
+---
+
+## 7. Multi-Instance Federation and Graph Merging
+
+A single Engram instance handles a bounded domain. Real deployments often span multiple
+domains, multiple teams, or multiple geographic locations — each with their own instance.
+This section covers how instances can be connected and how their graphs can be combined.
+
+### 7.1 Inter-Instance Communication
+
+Instances communicate through action contracts, the same mechanism used for any other
+external call. An action defined as `FetchFromEngram` with a `RestApiStore` endpoint
+is structurally identical to any other action — it is enumerable, policy-gated, and
+auditable. No special federation protocol is needed at the engine level.
+
+```text
+Instance A (auth domain)
+  │
+  └── action: FetchFromEngram(instance=billing, query="account_status")
+        │
+        ▼
+      Instance B (billing domain)
+        → returns: path, confidence, ruled-out candidates
+        → result activates nodes in Instance A's session context
+```
+
+Communication transports map to the storage abstraction (§6):
+
+| Transport | Use case |
+| --- | --- |
+| REST API | Cross-network, cross-team, multi-tenant |
+| Unix socket / named pipe | Low-latency IPC on the same host |
+| Shared database | Shared read, isolated write — useful for analytics aggregation |
+| Graph delta stream | Asynchronous weight propagation (§7 in use_cases.md) |
+
+The policy engine gates every inter-instance call identically to any other action:
+permission level, rate limit, and confirmation requirement apply. An instance cannot
+be interrogated by another instance unless the action is in the contract.
+
+### 7.2 Graph Merging
+
+When two instances have accumulated knowledge in overlapping domains, their graphs can
+be merged into a single graph. This is the "melting" operation.
+
+**Non-overlapping knowledge** is trivially additive: nodes and edges from both graphs
+are combined, with no conflict. Path labels, node IDs, and action contracts are
+unioned.
+
+**Overlapping paths — weight resolution.** When both graphs contain an edge between
+the same two concepts, the merged edge weight is computed from both sources:
+
+```text
+Graph A:  timeout → connection_pool   weight: 0.76, n=28
+Graph B:  timeout → connection_pool   weight: 0.61, n=14
+
+Merged:   weight = (0.76×28 + 0.61×14) / (28+14) = 0.71
+          n     = 28 + 14 = 42
+```
+
+This is a session-count-weighted average — graphs with more confirmed sessions
+contribute proportionally more to the merged weight. The result encodes the collective
+experience of both instances without either dominating arbitrarily.
+
+**Boundary deduplication.** Before merging, node and action identities must be aligned:
+
+1. **Canonical node ID mapping** — nodes representing the same concept may have
+   different IDs in each graph. A merge requires a mapping step: either by matching
+   labels, by a shared ontology, or by manual curation for ambiguous cases.
+2. **Action contract deduplication** — actions with the same name but different
+   parameter schemas must be reconciled before merging. Divergent schemas are a merge
+   conflict that requires explicit resolution, not silent overwriting.
+3. **Provisional nodes** — nodes that are provisional (low confirmed sessions) in
+   either graph retain their provisional status in the merged graph. They do not
+   inherit the other graph's confidence.
+
+**Merge is not always correct.** Two graphs trained on different populations may have
+legitimately different weights for the same path — one team's experience genuinely
+differs from another's. A merge conflates this. The right question before merging is:
+*should these two populations share a transition table?* If the answer is no, federation
+(§7.1) is more appropriate than merging — instances remain separate and query each other
+when needed.
+
+### 7.3 Roadmap Note
+
+Inter-instance communication via action contracts (§7.1) requires no new engine
+primitives — it is a knowledge graph authoring task once the `RestApiStore` backend
+exists (§6). Graph merging (§7.2) is a CLI operation (`engram merge graph-a.json graph-b.json`)
+that can be specified and tested independently of the runtime. Both are natural follow-ons
+to the §8 roadmap in use_cases.md, not prerequisites for it.

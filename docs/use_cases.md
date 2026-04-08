@@ -328,8 +328,11 @@ actionable product intelligence with no user tracking.
 
 - WASM compilation target for the reasoning engine
 - Compact graph delta serialization format (binary diff of edge weights + new nodes)
-- Merge protocol with conflict resolution (§20.7 covers the strategy, delta format is new)
+- Merge protocol with conflict resolution — see architecture.md §7.2 for the full
+  session-count-weighted merge strategy and boundary deduplication rules
 - Hierarchical node topology configuration
+- Storage backend abstraction (architecture.md §6) — delta streams and remote graph
+  sources require a `RestApiStore` or `SocketStore` backend
 
 ---
 
@@ -497,12 +500,76 @@ causes.
 
 ---
 
+## 11. LLM Tool Security Boundary
+
+**The problem with current LLM tool security:** Guardrails today are either system
+prompts (bypassable via jailbreak or prompt injection) or runtime checks scattered
+across application code (fragile, hard to audit, easy to drift). Neither provides a
+structural guarantee — they are fuzzy fuses, not walls.
+
+**What Engram provides instead:** When an LLM calls Engram via MCP, the only operations
+available are those explicitly enumerated in `actions.json`. Permissions, rate limits,
+and confirmation requirements are declared in `policies.json` and enforced by the
+`PolicyEngine` before any execution layer call. The LLM cannot trigger an action that
+is not in the contract, cannot bypass a `Permission: Admin` gate, and cannot exceed a
+rate limit — not because a prompt says so, but because the execution pathway does not
+exist.
+
+```text
+LLM tool call: DeleteUser(account_id=42)
+  │
+  ▼
+PolicyEngine evaluates:
+  action:               DeleteUser
+  required_permission:  Admin
+  session_permission:   Authenticated      ← insufficient
+  result:               BLOCKED
+  graph activation:     permission_denied  → re-authentication breaking question
+                                           → or escalation node
+```
+
+**This is structural impossibility, not a guardrail.** A guardrail can be bypassed if
+the LLM reasons around it. Engram's policy engine sits between the reasoning layer and
+the execution layer — the LLM never touches the execution layer directly. The contract
+is the interface; the contract is finite; the contract is auditable.
+
+**Properties:**
+
+- **Enumerable action surface** — every operation the LLM can trigger is listed in a
+  human-readable file before deployment. Security review is a diff, not a code audit.
+- **Centralised policy** — permissions, rate limits, and confirmation requirements are
+  in one place (`policies.json`), not scattered across application logic.
+- **No prompt dependence** — removing a prompt guardrail changes LLM behaviour. Removing
+  an action from `actions.json` makes it structurally unreachable.
+- **Auditable by default** — every action attempt, block, and escalation is part of the
+  session record. The audit trail is a natural output of the reasoning engine.
+- **Runtime policy update** — `policies.json` is evaluated at runtime. A permission rule
+  can be tightened without rebuilding or redeploying the graph.
+
+**Comparison to current approaches:**
+
+| Approach | Bypassable | Centralised | Auditable | Runtime update |
+| --- | --- | --- | --- | --- |
+| System prompt guardrails | Yes — prompt injection | No | No | Yes |
+| Hardcoded runtime checks | Difficult — code review | No | Partial | No — redeploy |
+| Engram policy engine | No — structural | Yes | Yes | Yes |
+
+**Target contexts:**
+
+- LLM agents with access to sensitive APIs (user data, billing, infrastructure)
+- Multi-agent systems where one LLM orchestrates others — policy engine gates every hop
+- Regulated environments where every action must be pre-approved and logged
+- Any deployment where "the LLM should never be able to do X" must be a guarantee, not a hope
+
+---
+
 ## Summary Table
 
 | # | Use Case | Key Benefit | Priority |
 | --- | --- | --- | --- |
 | 8 | **LLM agent mesh / cost optimizer** | 70-80% of bounded-domain queries handled free; LLM only sees novel cases | **Primary focus** |
 | 9 | **MCP server — LLM knowledge database** | Persistent, confidence-weighted, self-improving memory for LLM agents | **Primary focus** |
+| 11 | **LLM tool security boundary** | Structural policy enforcement — enumerable actions, centralised permissions, not prompt guardrails | **Primary focus** |
 | 7 | Hierarchical distributed aggregation | Structural differential privacy; graph deltas not raw events | Long-term |
 | 1 | Team knowledge distillation | Privacy-preserving, attribution-free collective memory; post-mortems and onboarding as natural outputs | Enabled by §8 |
 | 4 | Event-driven automation and business logic | Policy-gated action dispatch; CI/CD, log intelligence, and git analysis as sub-cases | Enabled by §8 |
