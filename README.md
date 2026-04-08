@@ -61,28 +61,16 @@ A fleet of specialist graphs coordinated by a router is a deterministic
 sparse Mixture of Experts: large total knowledge, small per-query compute,
 every routing decision auditable.
 
-**Privacy-preserving collective memory** — every resolved session compresses
-into the graph as edge weight updates, never as stored conversation or
-attributed records. Teams accumulate knowledge structurally: incident
-runbooks distilled from resolutions, onboarding paths that outlast any wiki,
-CI/CD triage patterns learned from real failures. Attribution is structurally
-absent — not scrubbed, never recorded.
-
-**Industrial domain agent** — bounded, high-stakes domains where determinism
-and auditability are regulatory requirements: medical triage routing,
-financial compliance screening, infrastructure fault isolation. The graph
-stores the domain; the policy engine enforces who can trigger which actions;
-the execution layer is completely separate. Also the right choice wherever
-an LLM of any size is not permitted: air-gapped, safety-critical, or
-regulated environments.
-
-**Hierarchical distributed aggregation** — local Engram instances (including
-browser-embedded WASM) emit compact graph deltas — not raw events, not
-identifying data — to server instances that merge them upward. What travels
-between nodes is edge weight adjustments, never raw user actions. Structural
-differential privacy: the signal is the graph change, not the event. Product
-analytics without telemetry pipelines; local-first apps contributing to a
-global knowledge pool without central data collection.
+**LLM tool gateway — structural security boundary** — current LLM tool
+security relies on system prompts and scattered runtime checks: fuzzy fuses
+that a sufficiently persuasive input can blow. When an LLM calls Engram via
+MCP, the only operations available are those explicitly enumerated in the
+action contract. Permissions, rate limits, and confirmation requirements are
+declared in a policy file and enforced by the `PolicyEngine` before any
+execution layer call. The LLM cannot trigger an action outside the contract —
+not because a prompt says so, but because the execution pathway does not exist.
+Every action surface is enumerable before deployment; every blocked call is
+logged; the policy file is the complete audit record.
 
 **MCP server — knowledge database for LLM agents** — today's LLMs carry
 memory in context windows (resets every conversation) or flat files (static,
@@ -94,6 +82,30 @@ resolved dimensions — not a text chunk. Multiple agents sharing one Engram
 instance share the *graph* (compressed patterns), never raw conversations.
 The graph learns from every LLM-confirmed answer, so queries that initially
 required model reasoning eventually resolve from Engram alone.
+
+**Team knowledge distillation** — every resolved session compresses into the
+graph as edge weight updates, never as stored conversation or attributed
+records. Teams accumulate knowledge structurally: incident runbooks distilled
+from resolutions, onboarding paths that outlast any wiki, CI/CD triage
+patterns learned from real failures. Attribution is structurally absent —
+not scrubbed, never recorded. Privacy is a structural property of the design,
+not a policy enforced on top of it.
+
+**Industrial domain agent** — bounded, high-stakes domains where determinism
+and auditability are regulatory requirements: medical triage routing,
+financial compliance screening, infrastructure fault isolation. The graph
+stores the domain; the policy engine enforces who can trigger which actions;
+the execution layer is completely separate. Also the right choice wherever
+an LLM of any size is not permitted: air-gapped, safety-critical, or
+regulated environments.
+
+**Distributed analytics without telemetry** — local Engram instances
+(including browser-embedded WASM) emit compact graph deltas — not raw events,
+not identifying data — to server instances that merge them upward. What
+travels between nodes is edge weight adjustments, never raw user actions.
+The signal is the graph change, not the event: product analytics without
+telemetry pipelines, local-first apps contributing to a global knowledge pool
+without central data collection.
 
 [docs/use_cases.md](docs/use_cases.md) documents all 10 deployment contexts.
 
