@@ -146,6 +146,35 @@ Node ID activation vector   ← text discarded here
 Graph navigation, reinforcement, storage — all operate on node IDs only
 ```
 
+**Two very different cases cross this boundary:**
+
+**Hard case — human freetext.** The user types natural language. The tokeniser
+must map vocabulary it was never explicitly taught: synonyms, paraphrasing,
+typos, domain drift. `"dying under load"` must activate `[timeout, high_concurrency]`.
+This is the central NLP challenge for any keyword-based system. Tokeniser quality
+directly determines recall — a missed mapping means the wrong path (or no path) is
+activated, regardless of how good the graph is. The quality spectrum from alias map
+through BM25 to embeddings is documented in §4.1; each tier is a drop-in replacement
+for seed generation without changing the graph engine.
+
+**Easy case — MCP and agent callers.** When Engram is called via MCP, the LLM emits
+a structured tool invocation — the parameters are already named concept tokens:
+
+```text
+// Human freetext — tokeniser must map "dying under load" → [timeout, high_concurrency]
+"my orders endpoint keeps dying under load"
+
+// MCP tool call — activation vector arrives pre-formed
+engram.query({ nodes: ["timeout", "database", "orders"] })
+```
+
+In the MCP case, the `nodes` array is the activation vector. The tokeniser
+becomes a trivial ID lookup rather than an NLP problem. The LLM has already
+performed semantic extraction; Engram receives the result of that work, not
+the raw text. This is why MCP is the natural deployment surface for Engram
+in agent pipelines: the protocol already speaks the graph's vocabulary, with
+no semantic bridge required.
+
 This is not a sanitisation policy. Sanitisation assumes sensitive content
 might slip through and tries to catch it. This is a structural guarantee:
 there is no pathway by which input text reaches any storage layer, because
@@ -537,7 +566,28 @@ Why does Rust complain about borrowing?
 
 ### 4.1 Tokenization and Normalization
 
-Stop words are removed; terms are stemmed or matched by alias:
+Tokenization maps input text to node IDs. This is the primary NLP challenge
+for human-originated freetext input — synonym handling, paraphrase, typos,
+and domain drift all affect recall. There is a quality spectrum of approaches,
+each independent of the graph engine:
+
+| Approach | Mechanism | Recall | Size penalty | Phase |
+| --- | --- | --- | --- | --- |
+| Alias map | Hand-curated regex/lookup table | Low — misses paraphrase | None | Current |
+| BM25 + n-grams | TF-IDF scored token overlap, bigram/trigram matching | Medium | None | Phase 13 |
+| Static embeddings | word2vec / GloVe nearest-neighbour | High | ~10–30 MB | §20.1 |
+| Sentence embeddings | all-MiniLM-L6-v2 class, ~22 MB | Very high | ~22 MB | §20.1 |
+
+The graph engine is unchanged regardless of which tokenizer tier is in use —
+only the quality of the activation seed vector changes. A deployment that
+prioritises the 100 MB total budget can hold a trimmed embedding vocabulary
+for its specific domain at well under 30 MB.
+
+**For MCP and agent callers, tokenization is not the bottleneck** — see §2.6.
+The LLM has already performed semantic extraction; the `nodes` parameter
+arrives as a typed array of concept identifiers that map directly to node IDs.
+
+For human freetext, stop words are removed and terms are stemmed or matched by alias:
 
 ```text
 rust  →  rust

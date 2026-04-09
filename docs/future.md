@@ -23,6 +23,54 @@
 | Domain isolation          | Separate persona files          | Entangled weights     |
 | System actions            | Execution layer separated       | Direct / unvalidated  |
 
+### 19.1 Resource Boundary and Complementary Strengths
+
+The original design motivation: a 100–500 MB Engram graph in a single language
+(e.g. English) can cover the majority of queries in any bounded domain where
+vocabulary is finite and resolution patterns repeat. Examples:
+
+- **CI/CD triage** — build failures, test timeouts, deployment errors
+- **Structured log analysis** — error classification, root cause routing
+- **Payment and order dispute routing** — chargeback classification, fraud pattern matching
+- **Frontend error classification** — CORS, 401/403/429, CSP violations, timeout patterns
+
+In these domains, the same 200–2000 problem signatures account for 80–95% of
+all queries. A graph encoding those signatures resolves them in microseconds
+on a single CPU core — no GPU, no API key, no network.
+
+**Where LLMs are better — and always will be:**
+
+- **Novel cross-domain reasoning** — the query has never been seen and no
+  similar path exists in the graph
+- **Source code analysis** — understanding arbitrary code, generating patches,
+  refactoring suggestions
+- **Deep unstructured conversation** — open-ended discussion, creative tasks,
+  tasks where the problem space is unbounded
+- **Multilingual abstraction** — reasoning simultaneously across languages
+  and notational systems
+
+Engram's design trades those capabilities deliberately for determinism,
+auditability, 1000× resource efficiency, and zero API cost on known paths.
+The two systems are complementary:
+
+```text
+Query arrives
+  │
+  ├── Engram graph: known path, high confidence
+  │     → resolve in microseconds, zero cost
+  │
+  └── Novel / low confidence
+        → escalate to LLM with structured context
+        → LLM resolves
+        → answer written back as graph path
+        → that query never costs tokens again
+```
+
+The crossover point is domain coverage: as the graph accumulates session data,
+the proportion of queries that need the LLM drops. In a well-covered domain,
+Engram handles 70–90% of queries without any model call. The LLM becomes a
+teaching signal, not a runtime dependency.
+
 ---
 
 ## 20. Future Directions

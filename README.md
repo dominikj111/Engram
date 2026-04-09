@@ -26,9 +26,27 @@ The design makes specific trade-offs that most AI tooling deliberately avoids:
 | Same input → guaranteed same output | No — stochastic by design | Yes — deterministic graph traversal |
 | Full reasoning trace, auditable to each step | No | Yes — every node and edge is named |
 | Runs fully offline, no runtime dependency | Needs runtime / server | Yes — single binary, no network |
-| Improves from session feedback without retraining | No — requires new fine-tune | Configurable — locked for frozen inference, or real-time edge weight updates when open |
+| Improves from session feedback without retraining | No — requires new fine-tune | Yes — learns from every confirmed session. Can be frozen for compliance deployments |
 | Stores patterns, never raw content | Depends on deployment | Structural — raw data never exists in transmittable form |
 | Domain knowledge independently ownable per team | No — entangled in weights | Yes — separate graph files, swappable |
+
+### The resource argument
+
+A 100–500 MB Engram graph in a single language covers the majority of queries
+in bounded domains where vocabulary is finite and resolution patterns repeat:
+CI/CD triage, structured log analysis, payment dispute routing, frontend error
+classification. The same 200–2000 problem signatures that account for 80–95%
+of real-world queries resolve in microseconds on a single CPU core — no GPU,
+no API key, no network.
+
+LLMs (50–100 GB of weights) are better at novel cross-domain reasoning,
+source code analysis, deep unstructured conversation, and multilingual
+abstraction — capabilities Engram deliberately does not attempt. Engram
+handles the well-trodden paths cheaply and deterministically; the LLM handles
+novel cases and teaches the graph what to encode next. Each LLM resolution
+becomes a new graph path — that query never costs tokens again.
+
+See [future.md §19.1](docs/future.md) for the full resource boundary analysis.
 
 ---
 
