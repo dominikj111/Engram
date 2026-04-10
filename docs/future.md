@@ -73,6 +73,59 @@ teaching signal, not a runtime dependency.
 
 ---
 
+### 19.2 Computational Class — Why Engram Is Not Turing Complete
+
+Turing completeness requires unbounded loops, arbitrary memory read/write,
+and conditional branching over arbitrary state. A Turing-complete system can
+simulate any computable function — and, as a consequence, cannot in general
+guarantee it terminates (the Halting Problem).
+
+Engram has conditional branching (breaking questions) and persistent memory
+(edge weights, session context, path labels), but:
+
+- **The graph is finite and domain-defined.** Traversal terminates in a
+  bounded number of hops. Phase 4 makes this explicit: maximum question
+  depth is configurable with a hard default of 3.
+- **Computation is navigation, not execution.** The engine finds a path
+  through existing knowledge; it does not evaluate arbitrary expressions
+  or build new control flow at runtime.
+- **The action set is enumerable at deploy time.** No new operations can
+  be dynamically defined during a session. Every reachable outcome is
+  inspectable before deployment.
+
+The correct formal characterisation is a **finite state machine with
+weighted probabilistic transitions and an online learning mechanism** —
+strictly more powerful than a plain FSM (because weights adapt and
+provisional nodes can be promoted), but strictly weaker than a Turing
+machine.
+
+**This is a deliberate design choice, not a shortcoming.** Turing
+completeness and the Halting Problem are inseparable: a system that can
+compute anything cannot guarantee termination. Engram guarantees
+termination — every session resolves or escalates within bounded steps.
+For production deployments where correctness, auditability, and
+predictable latency are requirements, that guarantee is worth more than
+generality.
+
+The same trade-off appears in deliberate form elsewhere in computing:
+SQL is not Turing complete (bounded, declarative, always terminates);
+regular expressions are not Turing complete (bounded matching,
+guaranteed to halt); hardware description languages are not Turing
+complete (synthesisable circuits must be finite). These are not
+failures of expressive power — they are the exact constraints that make
+those tools safe to deploy in production and reason about formally.
+
+**The recursive composition caveat.** The specialist swarm architecture
+(§20.5.1) allows routers to route to other routers, creating arbitrarily
+deep hierarchies. If that recursion were unbounded, the system would
+approach Turing completeness. In practice, recursion depth is bounded
+by the domain decomposition and the configured maximum question depth at
+each layer — the guarantee is preserved by design, not accident. Any
+deployment that removes those bounds should be treated as a general-purpose
+programming environment, not an Engram deployment.
+
+---
+
 ## 20. Future Directions
 
 These are not planned phases. They are architectural directions worth
