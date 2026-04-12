@@ -213,8 +213,11 @@ Several existing systems overlap with parts of Engram:
 | **AIML / Pandorabots** | Deterministic pattern-match dialogue | No weight learning, no graph navigation |
 | **Bayesian belief networks** | Weighted directed graph, deterministic inference | No dialogue layer, no action contracts |
 | **OpenCyc / ResearchCyc** | Closed-world knowledge graph, hard factual boundary, offline | No learning, no dialogue |
+| **LLM Wiki** (Karpathy, 2026) | Knowledge compiled at ingest time, persistent cross-references, accumulates across sessions, local ownership | Requires an LLM at query time, stores raw text, non-deterministic answers, no typed action contracts |
 
 The combination that does not exist elsewhere: a dialogue layer with structural privacy (no text stored at any layer), incremental weight learning without retraining, breaking questions as a first-class graph traversal primitive, and a hard knowledge boundary as an architectural guarantee rather than policy. Engram sits at the intersection of expert system, task-oriented dialogue, and reinforcement-learned policy graph — a combination shaped by constraints that existing tools treat as optional.
+
+**LLM Wiki as a companion pattern** — the LLM Wiki pattern (compiling knowledge into a maintained Markdown vault rather than retrieving raw documents at query time) is a natural complement, not a competitor. An LLM Wiki accumulates human-readable prose understanding; Engram accumulates executable reasoning paths from confirmed sessions. A domain expert could maintain both in parallel: the wiki as the inspectable narrative layer, the Engram graph as the deterministic query engine. As the graph matures and handles the well-trodden queries directly, the LLM that maintains the wiki increasingly focuses on novel edges — the two systems feed each other.
 
 ---
 
