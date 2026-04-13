@@ -518,6 +518,57 @@ action: ScheduleEngineer
   output: { booking_ref: String }
 ```
 
+---
+
+### 20.11 Modular Model Co-Architecture (Post-Transformer Direction)
+
+One long-term direction is to stop treating language intelligence as a single
+monolithic model and split it into explicit modules with typed interfaces:
+
+```text
+Input
+  -> Attention prior / routing layer
+  -> Generative model
+  -> Output formatter
+```
+
+In this design, Engram is not the generator. Engram acts as a deterministic
+attention prior and memory substrate before generation:
+
+- routes the query into the relevant domain context
+- activates only the relevant subgraph and policy gates
+- provides structured, auditable state to the generator
+- resolves known paths without invoking generation at all
+
+This decouples two responsibilities that are fused in current LLMs:
+
+- **stable operational knowledge** (graph; explicit, inspectable, versioned)
+- **open-ended language synthesis** (model; fluent, probabilistic)
+
+#### 20.11.1 Relation to self-attention
+
+Transformer self-attention is an internal mechanism in each model layer.
+For an existing trained transformer checkpoint, that internal mechanism is
+co-adapted with all other weights; swapping it usually requires retraining.
+
+Engram does not replace that internal attention inside current checkpoints.
+It provides an **external attention prior** before generation and a
+deterministic control/memory layer around generation.
+
+#### 20.11.2 Why this matters for modular architectures
+
+If future model architectures expose explicit module boundaries, Engram-like
+systems become first-class components rather than wrappers:
+
+- interchangeable routing/attention-prior modules
+- deterministic policy and action gating
+- persistent memory outside context windows
+- auditable traces for regulated environments
+
+The practical implication is architectural flexibility: the generative core
+can evolve independently, while the deterministic knowledge/control layer
+remains stable, inspectable, and domain-owned.
+
 #### Graph nodes for this slice
 
 ```text
