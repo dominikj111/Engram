@@ -11,11 +11,12 @@
 
 ## What Engram is
 
-Engram is a **deterministic reasoning kernel** — symbolic AI, a finite state machine,
+Engram is a **deterministic reasoning kernel** — deterministic semantic reasoning system built on symbolic structure, a finite state machine,
 with configurable boundaries and self-improving weights. The nodes and actions are fixed
 by design; what learns over time are the connections between them. Given a context, Engram navigates a directed graph of
 concepts, asks targeted **breaking questions** to resolve ambiguity, and emits typed
 **action contracts** that a separate execution layer runs. Every path is auditable,
+the reasoning kernel cannot execute side effects, and the execution layer validates every contract against policy before running it.
 every weight is named, and the system improves without retraining — not by inventing
 new knowledge, but by finding more reliable routes through what it already knows.
 
@@ -23,7 +24,7 @@ The design makes specific trade-offs that most AI tooling deliberately avoids:
 
 | Requirement | Small LLM / fine-tuned model | Engram |
 | --- | --- | --- |
-| Same input → guaranteed same output | No — stochastic by design | Yes — deterministic graph traversal |
+| Same input + same graph state → guaranteed same output | No — stochastic by design | Yes — deterministic graph traversal |
 | Full reasoning trace, auditable to each step | No | Yes — every node and edge is named |
 | Runs fully offline, no runtime dependency | Needs runtime / server | Yes — single binary, no network |
 | Improves from session feedback without retraining | No — requires new fine-tune | Yes — learns from every confirmed session. Can be frozen for compliance deployments |
@@ -153,6 +154,9 @@ scrubbed, never recorded. Conflicting resolutions stay provisional until
 independently confirmed. Hidden relationships between concepts surface
 automatically as the session population grows.
 
+Latent nodes are Engram's representation learning layer: repeated co-activation compresses recurring multi-signal patterns into reusable concepts.
+Example: `timeout + p95_latency_spike + retry_burst` can converge into a latent node like `upstream_saturation`, which then routes future incidents faster.
+
 ---
 
 ## Design Principles
@@ -162,7 +166,7 @@ automatically as the session population grows.
 - **Incremental learning** — session feedback updates edge weights in real time, no retraining
 - **Offline** — no network, no API key, no model server
 - **Composable** — domain knowledge in separate graph files, loadable and swappable independently
-- **Action-first** — solution nodes carry typed contracts; execution layer strictly separated
+- **Action-first** — reasoning proposes typed contracts only; execution layer validates and runs them
 - **Goal-aware** — multi-step goals span multiple exchanges with mid-conversation revision support
 - **Escalation-ready** — structured context exported for handoff when confidence falls below threshold
 - **Configurable learning** — each graph deployment chooses whether to learn from live traffic or stay frozen

@@ -23,33 +23,56 @@
 
 ---
 
-## Opening — The Observation That Started It
+## 1) The Problem
 
-Large language models are remarkable — and enormous. Typical LLM models have tens of gigabytes of weights and often require substantial RAM or VRAM at runtime. 
-They require a GPU for practical inference speeds or relies on a remote API call, and re-reasons from scratch on every query.
-For many real-world use cases this is unnecessary.
+Large language models are remarkable — and enormous. Typical models carry tens
+of gigabytes of weights and often require substantial RAM/VRAM at runtime.
+For practical throughput they typically need a GPU or a remote API call, and
+they still re-reason from scratch on every query.
 
-Human vocabulary for recurring problems is finite and repetitive. The same
-questions get asked dozens of times — the same error, the same workflow, the
-same diagnosis path. A system that has seen a question resolved correctly
-once does not need billions of parameters to handle it the second time.
+In production terms, the pain is clear:
 
-That was the initial observation. Not "LLMs are bad" — they are not. The
-observation was simpler: **most of the compute we (single user or multiple users upon same LLM) spend on LLMs is wasted on
-questions we have already answered.**
+- expensive at runtime
+- non-deterministic by design
+- difficult to audit step-by-step
+- forgetful across sessions unless memory is engineered externally
 
-I started sketching a system designed around that constraint: a lightweight
-graph that stores confirmed reasoning paths and resolves known queries
-deterministically — in microseconds, offline, on a single CPU core.
+For many real-world workloads, this is unnecessary overhead.
 
----
+## 2) The Observation
 
-## The Iteration That Changed the Framing
+Most operational questions are not open-ended intelligence tasks. They are
+repetitive, structured, and bounded: the same error signatures, the same
+workflow branches, the same resolution paths.
+
+A system that has seen a question resolved correctly once does not need
+billions of parameters to rediscover the same reasoning forever.
+
+## 3) The Insight
+
+We often do not need fresh intelligence at query time.
+We need compression of repeated reasoning.
+
+In other words: capture confirmed resolution paths once, then replay them
+deterministically at near-zero marginal cost.
+
+## 4) The Idea
+
+Treat knowledge as evolving graph structure, not ephemeral conversation state.
+Nodes encode concepts and decision points; edges encode confidence-weighted
+transitions learned from confirmed outcomes.
+
+The graph does not memorize raw text. It accumulates reusable reasoning paths.
+Each confirmed resolution strengthens a route; rejected paths decay.
+
+## 5) The System
+
+That is Engram: a deterministic reasoning layer that sits in front of an LLM.
+It resolves well-trodden paths directly and only escalates unresolved cases
+after a bounded graph loop.
 
 The first version was narrow: a standalone reasoning engine for bounded
-domains. Useful, but limited.
-
-After a few iterations, two things became clear:
+domains. Useful, but limited. After a few iterations, two things became clear:
 
 **First, the system sits naturally in front of an LLM — not instead of one.**
 Engram handles the well-trodden 80–95% of queries in a bounded domain without
@@ -97,6 +120,16 @@ Multiple agents sharing one Engram instance share the graph (compressed
 patterns), never raw conversations.
 
 This was not the original design goal. It emerged from the architecture.
+
+## 6) The Positioning
+
+This is not Engram versus LLMs. It is division of labor.
+
+- LLM = exploration
+- Engram = exploitation
+
+The LLM explores novel space and teaches new paths. Engram exploits what is
+already known with deterministic, auditable, low-cost execution.
 
 ---
 
@@ -272,7 +305,7 @@ Engram takes the compilation idea further: instead of compiling into prose,
 compile into a weighted directed graph where the compilation *is* the
 reasoning. A query doesn't require interpretation — it activates nodes,
 propagates through weighted edges, and produces a deterministic path. Same
-input, same output, every time. No model in the loop for known paths.
+input + same graph state, same output, every time. No model in the loop for known paths.
 
 | Dimension | RAG | LLM Wiki | Engram |
 | --- | --- | --- | --- |
@@ -460,11 +493,8 @@ assumes every query needs a model.
 
 ## Open Questions and Known Gaps
 
-This article describes a design proposal, not a shipped product. Engram is
-the result of several months of research and architectural thinking. The
-concept is serious — the roadmap has 15 phases and a realistic implementation
-horizon of at least six months. But proposals have gaps, and intellectual
-honesty requires naming them.
+This article describes a design proposal, not a shipped product.
+Engram emerged from several months of iterative exploration and refinement, culminating in a focused design phase over the past month. The current implementation is in its early stages, with an estimated six months of development to reach production-level capability.
 
 **New terminology.** Several terms in this article — **LMI** (LLM Machine
 Interface), **LLM/HO** (LLM or human operator as interchangeable callers) —
