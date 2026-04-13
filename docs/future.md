@@ -59,8 +59,9 @@ Query arrives
   ├── Engram graph: known path, high confidence
   │     → resolve in microseconds, zero cost
   │
-  └── Novel / low confidence
-        → escalate to LLM with structured context
+  └── Confidence below threshold
+        → bounded graph loop (fetch + breaking questions)
+        → if still unresolved, escalate to LLM with structured context
         → LLM resolves
         → answer written back as graph path
         → that query never costs tokens again
@@ -100,9 +101,10 @@ provisional nodes can be promoted), but strictly weaker than a Turing
 machine.
 
 **This is a deliberate design choice, not a shortcoming.** Turing
-completeness and the Halting Problem are inseparable: a system that can
-compute anything cannot guarantee termination. Engram guarantees
-termination — every session resolves or escalates within bounded steps.
+completeness and the Halting Problem are inseparable: no general algorithm
+can decide whether an arbitrary Turing-complete program will terminate.
+Engram guarantees termination — every session resolves or escalates within
+bounded steps.
 For production deployments where correctness, auditability, and
 predictable latency are requirements, that guarantee is worth more than
 generality.

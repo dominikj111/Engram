@@ -63,17 +63,21 @@ Engram graph activation
   │
   ├── High confidence ──► Answer directly   (no API call, microseconds)
   │
-  └── Low confidence / novel ──► Escalate to LLM
+  └── Confidence below threshold ──► Bounded graph loop
           │
-          └── Structured handoff: graph path + ruled-out candidates
-              + confidence state (not raw conversation)
+          ├── Fetch actions + breaking questions + re-propagation
+          │
+          ├── If confidence rises ──► Answer directly
+          │
+          └── If still unresolved ──► Structured handoff to LLM
                     │
                     ▼
               LLM response → reinforces the graph for next time
 ```
 
 In a well-trained bounded domain, Engram handles the majority of queries
-without any model call. The LLM only sees genuinely novel cases — and each
+without any model call. The LLM only sees cases that remain unresolved after
+the bounded loop — typically genuinely novel cases — and each
 one it resolves teaches the graph, making the next similar query cheaper.
 A fleet of specialist graphs coordinated by a router is a deterministic
 sparse Mixture of Experts: large total knowledge, small per-query compute,

@@ -9,13 +9,13 @@
 ### 1.1 Motivation
 
 Large language models are remarkable — and enormous. A typical deployment
-consumes tens of gigabytes of weights, requires a GPU or a remote API call,
-and re-reasons from scratch on every query. For many real-world use cases this
-is unnecessary: human vocabulary for recurring problems is finite and
-repetitive. The same questions get asked dozens of times — the same error, the
-same workflow, the same diagnosis path. A system that has seen a question
-resolved correctly once does not need billions of parameters to handle it the
-second time.
+consumes tens of gigabytes of weights, typically requires a GPU for practical
+inference speeds or relies on a remote API call, and re-reasons from scratch
+on every query. For many real-world use cases this is unnecessary: human
+vocabulary for recurring problems is finite and repetitive. The same questions
+get asked dozens of times — the same error, the same workflow, the same
+diagnosis path. A system that has seen a question resolved correctly once does
+not need billions of parameters to handle it the second time.
 
 Engram was designed around this observation. For bounded domains, a learned
 graph under 100 MB handles the majority of queries offline in microseconds —
