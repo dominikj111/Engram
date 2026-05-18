@@ -1,0 +1,34 @@
+Engram
+Copyright 2025 Dominik Jelínek (github.com/dominikj111) and contributors
+
+This product includes software developed by Dominik Jelínek as the
+original author and reference-implementation maintainer of the Engram
+deterministic reasoning kernel.
+
+Project home:   https://github.com/dominikj111/Engram
+License:        Apache License, Version 2.0 (see LICENSE)
+
+------------------------------------------------------------------------
+Attribution
+------------------------------------------------------------------------
+
+The Engram architecture, specification documents in docs/, and the
+reference Rust implementation in app/ were designed and authored by
+Dominik Jelínek. Subsequent contributions are credited to their
+respective authors in the project's git history and, where
+significant, in this file.
+
+When redistributing this software or substantial derivative works,
+this NOTICE file must be preserved as required by Section 4(d) of
+the Apache License, Version 2.0. Attribution to the original author
+and to the Engram project name should be retained in documentation
+or "About" surfaces of derivative works.
+
+------------------------------------------------------------------------
+Third-party components
+------------------------------------------------------------------------
+
+This project depends on third-party Rust crates listed in
+app/Cargo.toml. Each crate is distributed under its own license; their
+notices and copyrights are reproduced by `cargo about` / `cargo deny`
+in build artifacts where applicable.

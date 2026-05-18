@@ -5,6 +5,39 @@ project is structured and what kinds of contributions are welcome.
 
 ---
 
+## Before you write any code
+
+**Open an issue or a draft PR describing the change before you start work.**
+This applies to every contribution category in the table below, including
+bug fixes that are larger than a few lines, new tests, new seed graphs, and
+alternative-language implementations.
+
+The reason is simple: Engram is a specification-driven project, and an
+in-flight roadmap means some areas are actively being implemented or
+deliberately deferred. A short up-front discussion avoids duplicated work,
+clashes with the active phase, or PRs that have to be rejected for scope
+reasons after you've invested time.
+
+What to include in the issue / draft PR:
+
+1. **What you intend to change**, in one or two sentences.
+2. **Which roadmap phase** ([docs/roadmap.md](docs/roadmap.md)) it touches,
+   or "out of phase" if none.
+3. **Why** — bug, missing capability, clarification, new domain graph, port
+   to another language, etc.
+4. For non-trivial work: a brief sketch of the approach.
+
+A maintainer will respond with a go-ahead, a redirection, or a request for
+more detail. Trivial fixes (typos, dead links, single-line corrections) can
+skip the issue and go straight to a PR, but everything else benefits from a
+short pre-discussion.
+
+By contributing, you agree that your contributions are licensed under the
+Apache License, Version 2.0 (see [LICENSE](LICENSE)) and that attribution
+follows the project's [NOTICE](NOTICE) file.
+
+---
+
 ## The relationship between docs and code
 
 The design documents in [docs/](docs/) are the **specification**. The Rust
@@ -14,12 +47,12 @@ This distinction matters for contributions:
 
 | Contribution type | Welcome? | Process |
 | --- | --- | --- |
-| Code implementing a documented phase | Yes | Standard PR |
-| Bug fixes and correctness improvements | Yes | Standard PR |
-| Tests, benchmarks, examples | Yes | Standard PR |
-| Refactoring within spec | Yes | Standard PR |
-| New seed knowledge / domain graphs | Yes | Standard PR |
-| Spec clarifications (typos, ambiguous wording) | Yes | Standard PR |
+| Code implementing a documented phase | Yes | Issue or draft PR first, then PR |
+| Bug fixes and correctness improvements | Yes | Issue or draft PR first, then PR |
+| Tests, benchmarks, examples | Yes | Issue or draft PR first, then PR |
+| Refactoring within spec | Yes | Issue or draft PR first, then PR |
+| New seed knowledge / domain graphs | Yes | Issue or draft PR first, then PR |
+| Spec clarifications (typos, ambiguous wording) | Yes | Issue or draft PR first, then PR |
 | **Alternative language implementation** | **Yes** | **See below** |
 | Design changes to docs/ | Rarely | Discussion first — see below |
 
