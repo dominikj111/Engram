@@ -128,6 +128,28 @@ programming environment, not an Engram deployment.
 
 ---
 
+### 19.3 Comparison with Runtime Orchestration Frameworks
+
+LangChain, AutoGen, CrewAI, and similar frameworks are runtime orchestration layers — they sequence LLM calls, route between agents, and manage tool invocation. They solve a different problem from Engram: not *what the system knows*, but *how multiple model calls are coordinated*. The comparison is worth making explicit because they occupy adjacent space in LLM toolchains and are often conflated.
+
+| Dimension            | LangChain / AutoGen                              | Engram                                                        |
+| -------------------- | ------------------------------------------------ | ------------------------------------------------------------- |
+| Decision routing     | LLM reasons at runtime                           | Graph resolves known patterns deterministically               |
+| Audit trail          | Tool call log; reasoning is opaque               | Full path trace: every activated node, branch, outcome        |
+| Re-derivation        | Every session, from scratch                      | Once confirmed, never re-derived — edge weights reinforce     |
+| Specialist knowledge | Separate briefed agents (per-session overhead)   | Separate persona graph files (loaded once, zero briefing cost)|
+| Policy boundary      | Prompt-level guardrails                          | Enumerable action contracts — structural impossibility        |
+| LLM involvement      | Every decision point                             | Novel cases only — known paths bypass the model entirely      |
+| Composition          | Can call Engram as MCP tool                      | Provides typed reasoning paths to any caller                  |
+
+**Where LangChain / AutoGen are better:** open-ended pipelines where the structure of the work is unknown in advance, tool ecosystems that require broad integration, and tasks where the problem space is genuinely unbounded. For those cases, LLM-driven orchestration is the right model.
+
+**Where Engram is better:** bounded operational domains where the same query signatures recur, where decisions need to be auditable, where a structural policy boundary between the LLM and executable actions is required, or where cost and latency on known paths must be near-zero.
+
+**Composition:** an agent pipeline built with LangChain or AutoGen can call Engram as an MCP tool mid-reasoning. The agent receives a typed reasoning path — confidence score, ruled-out candidates, resolved dimensions — instead of re-deriving the answer from language. Engram reduces the LLM's decision load on the paths it has already learned; the orchestration framework handles the rest. Neither replaces the other.
+
+---
+
 ## 20. Future Directions
 
 These are not planned phases. They are architectural directions worth
