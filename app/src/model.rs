@@ -160,6 +160,14 @@ pub enum SessionOutcome {
     Abandoned,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ConfidenceLevel {
+    High,    // top score ≥ θ_a AND gap to second ≥ θ_d
+    Medium,  // top score ≥ θ_a BUT gap to second < θ_d
+    Low,     // top score < θ_a
+    Unknown, // no candidates reached activation at all
+}
+
 impl std::fmt::Display for SessionOutcome {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -15,5 +15,8 @@
   {"src": 11, "dst": 25, "weight": 0.72, "confidence": 0.68, "path_labels": ["http_cors"]},
   {"src": 8,  "dst": 26, "weight": 0.88, "confidence": 0.82, "path_labels": ["http_timeout"]},
   {"src": 9,  "dst": 23, "weight": 0.90, "confidence": 0.85, "path_labels": ["http_429"]},
-  {"src": 1,  "dst": 27, "weight": 0.55, "confidence": 0.50, "path_labels": ["http_ssl"]}
+  {"src": 1,  "dst": 27, "weight": 0.55, "confidence": 0.50, "path_labels": ["http_ssl"]},
+  {"src": 12, "dst": 7,  "weight": 0.80, "confidence": 0.70, "path_labels": ["http_cors"]},
+  {"src": 13, "dst": 14, "weight": 0.75, "confidence": 0.65, "path_labels": ["http_timeout"]},
+  {"src": 14, "dst": 8,  "weight": 0.85, "confidence": 0.80, "path_labels": ["http_timeout"]}
 ]
