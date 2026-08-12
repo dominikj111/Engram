@@ -61,10 +61,10 @@ into compliance.
 | # | Task | Guideline | Status |
 |---|---|---|---|
 | C1 | **Tests for the engine** — seeding, propagation, confidence thresholds, determinism; fixture-based unit tests in `engine.rs` | testability invariant; style guide §5 | Done (2 tests, `fix (2)` commit) |
-| C2 | **CI pipeline** — GitHub Actions: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`, `cargo build --release` on `main` and PRs | testability invariant; review focus | Pending |
+| C2 | **CI pipeline** — GitHub Actions: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`, `cargo build --release` on `main` and PRs | testability invariant; review focus | Done (`.github/workflows/ci.yml`) |
 | C3 | **Production error type** — replace `Box<dyn Error>` in `knowledge.rs`/loader with a typed `KnowledgeError` | rust guidelines (production-grade error handling) | Pending |
-| C4 | **Rustdoc** — every module and public item documented; `#![warn(missing_docs)]` on the crate | rust guidelines; style guide §5 | Pending |
-| C5 | **AGENTS.md (L0 context)** — repo identity, guidelines references, branch policy; human-reviewed | icm_mwp §1.4, §2 | Pending |
+| C4 | **Rustdoc** — every module and public item documented; `#![warn(missing_docs)]` on the crate | rust guidelines; style guide §5 | Done (all modules; lint enabled) |
+| C5 | **AGENTS.md (L0 context)** — repo identity, guidelines references, branch policy; human-reviewed | icm_mwp §1.4, §2 | Done — draft; human review requested |
 | C6 | **Handover log discipline** — `handover/` directory committed; one log per iteration (accept → process → handoff) | icm_mwp §5.2–5.3 | Started (`handover/` created) |
 | C7 | **Commit shape** — `feat (NN) / fix (NN) / docs / chore` where NN is the roadmap story number (phase number) | git_commit_conventions | Adopted from this commit onward |
 | C8 | **Determinism guard** — no `HashMap` in the reasoning path; tie-break by node id; regression test | workspace invariant #1 | Done (`fix (2)` commit) |
