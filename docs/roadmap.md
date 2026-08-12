@@ -16,6 +16,75 @@ and progressively smarter from there.
 
 ---
 
+## 18.0 Status & Engineering Compliance
+
+### Status legend
+
+| Status | Meaning |
+|---|---|
+| **Done** | Phase delivered, merged to `main`, verified |
+| **Current** | Active work; lives on the named dev branch |
+| **Pending** | Not started; ordered by roadmap |
+
+### Current state (what is done, what is in front)
+
+| Phase | Capability | Status | Evidence |
+|---|---|---|---|
+| 0 | Compilable skeleton, file I/O | **Done** | `app/src/*` — model, knowledge loader, CLI, JSON layout |
+| 1 | Static keyword lookup from seed data | **Done** | `run_single_query` on `main`; seed `knowledge/` |
+| 2 | Graph propagation with activation trace | **Done** | `app/src/engine.rs` (merged from PR #1; determinism fix + tests on `main`) |
+| 3 | Single yes/no clarification | **Pending** | dev branch `phase-3/clarification-questions` |
+| 4 | Multi-branch breaking questions | Pending | — |
+| 5 | Named path recording with tags | Pending | — |
+| 6 | Path cache for fast re-resolution | Pending | — |
+| 7 | Session history with audit trail | Pending (partial) | `--history` reads `sessions.json`; recording not implemented |
+| 8 | Reinforcement — graph improves with use | Pending | — |
+| 9 | Weak memory — mistakes stored and corrected | Pending (partial) | `--weak` lists entries; learning/write path not implemented |
+| 10 | Latent node discovery | Pending | `--latent` filters seed nodes only |
+| 11 | Automatic context expansion | Pending | `--provisional` filters by tag only |
+| 12 | Bias tuning, exploration noise, audit | Pending | `--audit` is a stub |
+| 13 | BM25 + n-grams + context carry + composite | Pending | — |
+| 14 | Connectome inspector — visual graph explorer | Pending | — |
+| 15 | Storage backend abstraction | Pending | — |
+
+### Engineering-guideline compliance backlog
+
+The roadmap is governed by the engineering workspace guidelines
+(`llm_profiles/engineering/`): `rust_development_guidelines.md`,
+`software_development_style_guides.md`, `icm_mwp_guidelines.md`,
+`git_commit_conventions.md`. Every phase below must carry tests and
+rustdoc as part of its deliverable (style guide §5: *tests are part of the
+deliverable*; rust guidelines: *rustdoc with examples*, *production-grade
+error types*). The items below are the backlog to bring the current repo
+into compliance.
+
+| # | Task | Guideline | Status |
+|---|---|---|---|
+| C1 | **Tests for the engine** — seeding, propagation, confidence thresholds, determinism; fixture-based unit tests in `engine.rs` | testability invariant; style guide §5 | Done (2 tests, `fix (2)` commit) |
+| C2 | **CI pipeline** — GitHub Actions: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`, `cargo build --release` on `main` and PRs | testability invariant; review focus | Pending |
+| C3 | **Production error type** — replace `Box<dyn Error>` in `knowledge.rs`/loader with a typed `KnowledgeError` | rust guidelines (production-grade error handling) | Pending |
+| C4 | **Rustdoc** — every module and public item documented; `#![warn(missing_docs)]` on the crate | rust guidelines; style guide §5 | Pending |
+| C5 | **AGENTS.md (L0 context)** — repo identity, guidelines references, branch policy; human-reviewed | icm_mwp §1.4, §2 | Pending |
+| C6 | **Handover log discipline** — `handover/` directory committed; one log per iteration (accept → process → handoff) | icm_mwp §5.2–5.3 | Started (`handover/` created) |
+| C7 | **Commit shape** — `feat (NN) / fix (NN) / docs / chore` where NN is the roadmap story number (phase number) | git_commit_conventions | Adopted from this commit onward |
+| C8 | **Determinism guard** — no `HashMap` in the reasoning path; tie-break by node id; regression test | workspace invariant #1 | Done (`fix (2)` commit) |
+| C9 | **`--audit` stub** — either implement Phase 12 scope or remove the subcommand until then | style guide §2 (no half-built features) | Pending — recommend removing until Phase 12 |
+| C10 | **Seed-knowledge fixtures** — commit the test graph as a fixture (`tests/fixtures/`) instead of relying on `knowledge/` runtime data | testability | Pending |
+
+### Phase acceptance criteria (applies to every phase)
+
+In addition to each phase's checkpoint below, every phase ships with:
+
+1. **Automated tests** covering the phase's new behavior (unit tests; integration
+   tests where a binary boundary exists).
+2. **Rustdoc** on all new public items.
+3. **CI green**: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`.
+4. **Determinism verified**: same input → same output, cross-process (guard via
+   the C8 regression test pattern).
+5. **Roadmap status flip + handover log** in the delivery commit (icm_mwp §5.2).
+
+---
+
 ### Phase 0 — Project Skeleton
 
 **Goal:** A compilable binary with defined data structures and file I/O.
@@ -603,24 +672,24 @@ texts are already computed; this is purely a new output format path.
 
 ### Full Phase Deliverables Summary
 
-| Phase  | Capability added                                 | Inspectable artifact                               |
-| ------ | ------------------------------------------------ | -------------------------------------------------- |
-| 0      | Compilable skeleton, file I/O                    | Binary runs, JSON layout                           |
-| 1      | Static keyword lookup from seed data             | Direct answers from seed                           |
-| 2      | Graph propagation with activation trace          | `--explain` hop-by-hop scores                      |
-| 3      | Single yes/no clarification                      | Interactive question flow                          |
-| 4      | Multi-branch breaking questions                  | Full decomposition tree                            |
-| 5      | Named path recording with tags                   | `paths.json`                                       |
-| 6      | Path cache for fast re-resolution                | Cache hit/miss in output                           |
-| 7      | Session history with audit trail                 | `sessions.json`, `--history`                       |
-| 8      | Reinforcement — graph improves with use          | Evolving `edges.json`                              |
-| 9      | Weak memory — mistakes stored and corrected      | `weak_memory.json`, `--weak`                       |
-| 10     | Latent node discovery                            | `--latent` review list                             |
-| 11     | Automatic context expansion                      | `--provisional` list                               |
-| 12     | Bias tuning, exploration noise, audit            | `--audit` report                                   |
-| **13** | **BM25 + n-grams + context carry + composite**   | **Near-LLM quality on domain queries**             |
-| **14** | **Connectome inspector — visual graph explorer** | **Interactive activation replay, edge inspection** |
-| **15** | **Storage backend abstraction**                  | **Deploy against file, database, REST, or socket** |
+| Phase  | Capability added                                 | Inspectable artifact                               | Status  |
+| ------ | ------------------------------------------------ | -------------------------------------------------- | ------- |
+| 0      | Compilable skeleton, file I/O                    | Binary runs, JSON layout                           | Done    |
+| 1      | Static keyword lookup from seed data             | Direct answers from seed                           | Done    |
+| 2      | Graph propagation with activation trace          | `--explain` hop-by-hop scores                      | Done    |
+| 3      | Single yes/no clarification                      | Interactive question flow                          | Pending |
+| 4      | Multi-branch breaking questions                  | Full decomposition tree                            | Pending |
+| 5      | Named path recording with tags                   | `paths.json`                                       | Pending |
+| 6      | Path cache for fast re-resolution                | Cache hit/miss in output                           | Pending |
+| 7      | Session history with audit trail                 | `sessions.json`, `--history`                       | Pending |
+| 8      | Reinforcement — graph improves with use          | Evolving `edges.json`                              | Pending |
+| 9      | Weak memory — mistakes stored and corrected      | `weak_memory.json`, `--weak`                       | Pending |
+| 10     | Latent node discovery                            | `--latent` review list                             | Pending |
+| 11     | Automatic context expansion                      | `--provisional` list                               | Pending |
+| 12     | Bias tuning, exploration noise, audit            | `--audit` report                                   | Pending |
+| **13** | **BM25 + n-grams + context carry + composite**   | **Near-LLM quality on domain queries**             | Pending |
+| **14** | **Connectome inspector — visual graph explorer** | **Interactive activation replay, edge inspection** | Pending |
+| **15** | **Storage backend abstraction**                  | **Deploy against file, database, REST, or socket** | Pending |
 
 ---
 
