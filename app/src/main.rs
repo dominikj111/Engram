@@ -3,8 +3,8 @@ mod engine;
 mod knowledge;
 mod model;
 
-use std::path::Path;
 use engine::Engine;
+use std::path::Path;
 
 use clap::Parser;
 use rustyline::{DefaultEditor, error::ReadlineError};
@@ -21,7 +21,10 @@ fn main() {
     let kb = match KnowledgeBase::load(knowledge_dir) {
         Ok(kb) => kb,
         Err(e) => {
-            eprintln!("error: failed to load knowledge base from '{}': {e}", knowledge_dir.display());
+            eprintln!(
+                "error: failed to load knowledge base from '{}': {e}",
+                knowledge_dir.display()
+            );
             std::process::exit(1);
         }
     };
@@ -137,7 +140,10 @@ fn run_single_query(kb: &KnowledgeBase, query: &str, explain: bool) {
         }
         engine::ConfidenceLevel::Low => {
             if let Some((score, _, _)) = result.top_solution {
-                println!("Top solution (score {:.2} < θ_a 0.75): threshold not met — entering clarification", score);
+                println!(
+                    "Top solution (score {:.2} < θ_a 0.75): threshold not met — entering clarification",
+                    score
+                );
             } else {
                 println!("threshold not met — entering clarification");
             }
@@ -160,7 +166,11 @@ fn cmd_history(kb: &KnowledgeBase, n: usize) {
     }
     let start = sessions.len().saturating_sub(n);
     for s in &sessions[start..] {
-        let questions: Vec<String> = s.breaking_questions_asked.iter().map(|id| id.to_string()).collect();
+        let questions: Vec<String> = s
+            .breaking_questions_asked
+            .iter()
+            .map(|id| id.to_string())
+            .collect();
         println!(
             "{}  {}  {}  questions: [{}]",
             s.session_id,
@@ -177,13 +187,20 @@ fn cmd_weak(kb: &KnowledgeBase) {
         return;
     }
     for e in &kb.weak_memory {
-        println!("{}  [{}]  nodes: {:?}  →  attempted: {}", e.id, e.status, e.activated_nodes, e.attempted_path);
+        println!(
+            "{}  [{}]  nodes: {:?}  →  attempted: {}",
+            e.id, e.status, e.activated_nodes, e.attempted_path
+        );
     }
 }
 
 fn cmd_latent(kb: &KnowledgeBase) {
     use model::NodeKind;
-    let latent: Vec<_> = kb.nodes.iter().filter(|n| n.kind == NodeKind::Latent).collect();
+    let latent: Vec<_> = kb
+        .nodes
+        .iter()
+        .filter(|n| n.kind == NodeKind::Latent)
+        .collect();
     if latent.is_empty() {
         println!("No latent nodes discovered yet.");
         return;
@@ -194,7 +211,11 @@ fn cmd_latent(kb: &KnowledgeBase) {
 }
 
 fn cmd_provisional(kb: &KnowledgeBase) {
-    let provisional: Vec<_> = kb.nodes.iter().filter(|n| n.tags.contains(&"unconfirmed".to_string())).collect();
+    let provisional: Vec<_> = kb
+        .nodes
+        .iter()
+        .filter(|n| n.tags.contains(&"unconfirmed".to_string()))
+        .collect();
     if provisional.is_empty() {
         println!("No provisional nodes pending.");
         return;
@@ -231,4 +252,3 @@ Sub-commands:
   engram audit         Bias audit report"#
     );
 }
-

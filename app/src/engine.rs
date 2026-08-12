@@ -1,6 +1,6 @@
 use crate::knowledge::KnowledgeBase;
 pub use crate::model::ConfidenceLevel;
-use crate::model::{Node, Solution, NodeKind};
+use crate::model::{Node, NodeKind, Solution};
 
 pub struct TraceStep {
     pub hop: u8,
@@ -29,10 +29,15 @@ impl<'a> Engine<'a> {
 
     pub fn query(&self, query: &str, explain: bool) -> QueryResult {
         let tokens = self.tokenise(query);
-        let mut node_activations: std::collections::HashMap<u32, f32> = std::collections::HashMap::new();
+        // BTreeMap, not HashMap: deterministic iteration order is a hard invariant
+        // (same input must always produce the same output). HashMap uses RandomState
+        // (per-process seed) and f32 summation is order-sensitive.
+        let mut node_activations: std::collections::BTreeMap<u32, f32> =
+            std::collections::BTreeMap::new();
         let mut trace = Vec::new();
 
-        let node_map: std::collections::HashMap<u32, &Node> = self.kb.nodes.iter().map(|n| (n.id, n)).collect();
+        let node_map: std::collections::HashMap<u32, &Node> =
+            self.kb.nodes.iter().map(|n| (n.id, n)).collect();
 
         // 1. Initial activation (Seeding)
         let mut seeds = Vec::new();
@@ -69,7 +74,7 @@ impl<'a> Engine<'a> {
         let mut current_activations = node_activations.clone();
 
         for hop in 1..=max_hops {
-            let mut next_activations = std::collections::HashMap::new();
+            let mut next_activations = std::collections::BTreeMap::new();
             let mut hop_fired = false;
 
             for edge in &self.kb.edges {
@@ -109,13 +114,22 @@ impl<'a> Engine<'a> {
         let mut solutions: Vec<(f32, Node, Solution)> = node_activations
             .iter()
             .filter_map(|(node_id, &score)| {
-                let node = self.kb.nodes.iter().find(|n| n.id == *node_id && n.kind == NodeKind::Solution)?;
+                let node = self
+                    .kb
+                    .nodes
+                    .iter()
+                    .find(|n| n.id == *node_id && n.kind == NodeKind::Solution)?;
                 let solution = self.kb.solutions.iter().find(|s| s.node_id == *node_id)?;
                 Some((score, node.clone(), solution.clone()))
             })
             .collect();
 
-        solutions.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        solutions.sort_by(|a, b| {
+            b.0.partial_cmp(&a.0)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                // Deterministic tie-break: equal scores resolve by node id (desc).
+                .then_with(|| b.1.id.cmp(&a.1.id))
+        });
 
         let theta_a = 0.75;
         let theta_d = 0.15;
@@ -151,12 +165,12 @@ impl<'a> Engine<'a> {
     pub fn tokenise(&self, input: &str) -> Vec<String> {
         // Stop words to discard.
         const STOP: &[&str] = &[
-            "a", "an", "the", "is", "it", "i", "my", "me", "we", "our", "you", "your",
-            "do", "does", "did", "am", "are", "was", "were", "be", "been", "being",
-            "get", "got", "have", "has", "had", "not", "no", "so", "to", "for", "of",
-            "in", "on", "at", "by", "or", "and", "but", "if", "that", "this", "with",
-            "from", "when", "why", "how", "what", "where", "can", "will", "would", "should",
-            "keep", "getting", "keep", "always", "still", "just", "even", "only", "also",
+            "a", "an", "the", "is", "it", "i", "my", "me", "we", "our", "you", "your", "do",
+            "does", "did", "am", "are", "was", "were", "be", "been", "being", "get", "got", "have",
+            "has", "had", "not", "no", "so", "to", "for", "of", "in", "on", "at", "by", "or",
+            "and", "but", "if", "that", "this", "with", "from", "when", "why", "how", "what",
+            "where", "can", "will", "would", "should", "keep", "getting", "keep", "always",
+            "still", "just", "even", "only", "also",
         ];
 
         input
@@ -165,5 +179,59 @@ impl<'a> Engine<'a> {
             .filter(|t| !t.is_empty() && !STOP.contains(t))
             .map(|t| t.to_string())
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::knowledge::KnowledgeBase;
+    use std::path::Path;
+
+    fn fixture() -> KnowledgeBase {
+        KnowledgeBase::load(Path::new("knowledge")).expect("fixture knowledge loads")
+    }
+
+    #[test]
+    fn propagation_reaches_solution_across_hops() {
+        // network_issue (13) → timeout_context (14) → timeout (8) → fix_timeout (26)
+        // is a 4-hop chain in the seed knowledge; activation must reach the solution.
+        let kb = fixture();
+        let engine = Engine::new(&kb);
+        let res = engine.query("network", true);
+        let (score, node, _) = res.top_solution.expect("network resolves to a solution");
+        assert_eq!(node.label, "fix_timeout");
+        assert!(score > 0.0, "solution must carry positive activation");
+        assert!(
+            !res.trace.is_empty(),
+            "explain must produce a hop-by-hop trace"
+        );
+    }
+
+    #[test]
+    fn deterministic_tie_break_and_output() {
+        // "error" seeds node `error`, which fans out to five solutions with identical
+        // accumulated scores. The result must be stable: ties resolve by node id (desc),
+        // and two runs over the same graph must agree bit-for-bit.
+        let kb = fixture();
+        let engine = Engine::new(&kb);
+        let a = engine.query("error", true);
+        let b = engine.query("error", true);
+
+        let top_a = a.top_solution.expect("error resolves");
+        let top_b = b.top_solution.expect("error resolves");
+        assert_eq!(
+            top_a.0.to_bits(),
+            top_b.0.to_bits(),
+            "scores must be bit-identical"
+        );
+        assert_eq!(top_a.1.id, top_b.1.id, "tie-break must be stable");
+        assert_eq!(a.confidence, b.confidence);
+        assert_eq!(a.trace.len(), b.trace.len());
+        for (x, y) in a.trace.iter().zip(b.trace.iter()) {
+            assert_eq!(x.hop, y.hop);
+            assert_eq!(x.dst_label, y.dst_label);
+            assert_eq!(x.dst_activation.to_bits(), y.dst_activation.to_bits());
+        }
     }
 }

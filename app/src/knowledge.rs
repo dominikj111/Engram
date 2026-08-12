@@ -1,9 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::model::{
-    BreakingQuestion, ContextPath, Edge, Node, Session, Solution, WeakMemoryEntry,
-};
+use crate::model::{BreakingQuestion, ContextPath, Edge, Node, Session, Solution, WeakMemoryEntry};
 
 /// The full in-memory knowledge base, loaded from the `knowledge/` directory.
 #[derive(Debug, Default)]
