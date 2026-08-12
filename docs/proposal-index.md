@@ -184,3 +184,11 @@ directions for after Phase 12, and the closing summary.
 
 Detailed descriptions of the five primary deployment contexts. Referenced from
 §2.5 in proposal.md and architecture.md, and from §20.5 in future.md.
+
+---
+
+## investor.md — Experiment Roadmap & Post-Validation Investor Memo
+
+Solo-founder pre-seed memo: experiment gates (zero-API-call proof + §17.5 metrics) come
+first and are self-funded; the post-validation ask is one fixed number (£40k, half-rate
+founder runway + business budget); investor answers, objections, and outreach channels.
