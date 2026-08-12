@@ -70,6 +70,9 @@ into compliance.
 | C8 | **Determinism guard** — no `HashMap` in the reasoning path; tie-break by node id; regression test | workspace invariant #1 | Done (`fix (2)` commit) |
 | C9 | **`--audit` stub** — either implement Phase 12 scope or remove the subcommand until then | style guide §2 (no half-built features) | Pending — recommend removing until Phase 12 |
 | C10 | **Seed-knowledge fixtures** — commit the test graph as a fixture (`tests/fixtures/`) instead of relying on `knowledge/` runtime data | testability | Pending |
+| C11 | **JigsawFlow adoption at the capability layer** — when use_cases §11 action contracts / PolicyEngine land: `contracts/`+`components/`+`facades/` structure, `singleton-registry` crate, capability contracts as `Arc<dyn Trait>`, null-object disabling, `try_get` degradation with logged warnings | jigsawflow_guidelines §1–§8 | Pending — gate: capability layer (use_cases §11) |
+| C12 | **GraphStore as facade** — at Phase 15, engine depends on the `GraphStore` trait, not the concrete `KnowledgeBase`; `FileStore` default + `MemoryStore` for tests (registry-mock pattern) | jigsawflow_guidelines §6, §7.1 | Pending — gate: Phase 15 |
+| C13 | **Logging foundation (`tracing`)** — required before any degradation path exists; deterministic warnings on `try_get` absence | jigsawflow_guidelines §2.2, §3.4; rust guidelines (logging) | Pending — gate: C11 or first optional-capability path |
 
 ### Phase acceptance criteria (applies to every phase)
 
