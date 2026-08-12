@@ -1,3 +1,6 @@
+//! CLI argument parsing for the `engram` binary: global flags, the optional
+//! single-shot query, and the inspection sub-commands.
+
 use clap::{Parser, Subcommand};
 
 /// Engram — deterministic reasoning kernel. Sparse attention over a knowledge graph, without the GPU.

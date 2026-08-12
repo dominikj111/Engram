@@ -1,3 +1,13 @@
+//! Engram — deterministic reasoning kernel.
+//!
+//! Sparse attention over a knowledge graph, without the GPU: a weighted context
+//! graph answers bounded-domain questions deterministically, navigates ambiguity
+//! with breaking questions, and learns incrementally from confirmed sessions.
+//!
+//! This crate is the CLI application: argument parsing, knowledge-base loading,
+//! the interactive REPL, and the read-only inspection sub-commands.
+#![warn(missing_docs)]
+
 mod cli;
 mod engine;
 mod knowledge;
@@ -14,6 +24,8 @@ use knowledge::KnowledgeBase;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Entry point: parse arguments, load the knowledge base, dispatch to the
+/// requested mode (interactive REPL, single query, or an inspection sub-command).
 fn main() {
     let args = Args::parse();
     let knowledge_dir = Path::new(&args.knowledge_dir);
@@ -49,6 +61,8 @@ fn main() {
 // Interactive REPL
 // ---------------------------------------------------------------------------
 
+/// Run the interactive read-eval-print loop: prints the banner, then reads
+/// lines until `exit`, `quit`, `:q`, Ctrl-C, or Ctrl-D.
 fn run_interactive(kb: &KnowledgeBase, explain: bool) {
     println!(
         "engram v{VERSION} — knowledge loaded: {} nodes, {} edges",
@@ -97,6 +111,8 @@ fn run_interactive(kb: &KnowledgeBase, explain: bool) {
 // Single-query mode
 // ---------------------------------------------------------------------------
 
+/// Answer one query: run the engine, print the activation trace when `explain`
+/// is set, then print the solution or the threshold/unknown fallback message.
 fn run_single_query(kb: &KnowledgeBase, query: &str, explain: bool) {
     let engine = Engine::new(kb);
     let result = engine.query(query, explain);
@@ -158,6 +174,7 @@ fn run_single_query(kb: &KnowledgeBase, query: &str, explain: bool) {
 // Sub-commands (stubs for future phases)
 // ---------------------------------------------------------------------------
 
+/// Print the last `n` recorded sessions from `sessions.json`.
 fn cmd_history(kb: &KnowledgeBase, n: usize) {
     let sessions = &kb.sessions;
     if sessions.is_empty() {
@@ -181,6 +198,7 @@ fn cmd_history(kb: &KnowledgeBase, n: usize) {
     }
 }
 
+/// List unresolved weak-memory entries from `weak_memory.json`.
 fn cmd_weak(kb: &KnowledgeBase) {
     if kb.weak_memory.is_empty() {
         println!("No weak memory entries.");
@@ -194,6 +212,7 @@ fn cmd_weak(kb: &KnowledgeBase) {
     }
 }
 
+/// List all nodes of kind `Latent` in the loaded graph.
 fn cmd_latent(kb: &KnowledgeBase) {
     use model::NodeKind;
     let latent: Vec<_> = kb
@@ -210,6 +229,7 @@ fn cmd_latent(kb: &KnowledgeBase) {
     }
 }
 
+/// List all nodes tagged `unconfirmed` (provisional, pending promotion).
 fn cmd_provisional(kb: &KnowledgeBase) {
     let provisional: Vec<_> = kb
         .nodes
@@ -225,6 +245,7 @@ fn cmd_provisional(kb: &KnowledgeBase) {
     }
 }
 
+/// Print the bias-audit report. Not implemented — available from Phase 12.
 fn cmd_audit(_kb: &KnowledgeBase) {
     println!("[phase 0] bias audit not yet implemented — available from phase 12");
 }
@@ -233,6 +254,7 @@ fn cmd_audit(_kb: &KnowledgeBase) {
 // Help
 // ---------------------------------------------------------------------------
 
+/// Print the interactive help text.
 fn print_help() {
     println!(
         r#"Commands:

@@ -1,32 +1,59 @@
+//! The reasoning engine: tokenise a query, seed node activation from label/tag
+//! matches, propagate activation across the graph with decay, rank solution
+//! nodes, and classify the outcome into a confidence level.
+//!
+//! Determinism is a hard invariant: activation state lives in `BTreeMap`s so
+//! iteration and f32 summation order are identical for identical inputs.
+
 use crate::knowledge::KnowledgeBase;
 pub use crate::model::ConfidenceLevel;
 use crate::model::{Node, NodeKind, Solution};
 
+/// One step of the activation trace: the activation a node received through a
+/// single edge during one propagation hop.
 pub struct TraceStep {
+    /// Propagation hop number (1-based).
     pub hop: u8,
+    /// Activation of the edge's source node at the start of this hop.
     pub src_activation: f32,
+    /// Label of the destination node that received activation.
     pub dst_label: String,
+    /// Activation added to the destination node by this single edge.
     pub dst_activation: f32,
+    /// Kind of the destination node.
     pub dst_kind: NodeKind,
+    /// Edge weight applied to the propagated activation.
     pub edge_weight: f32,
 }
 
+/// The outcome of a query: the ranked top solution (if any), the confidence
+/// classification, the activation seeds, and the full hop-by-hop trace.
 pub struct QueryResult {
+    /// Best solution as `(score, node, solution)`, `None` if nothing activated.
     pub top_solution: Option<(f32, Node, Solution)>,
+    /// Confidence classification derived from θ_a and θ_d.
     pub confidence: ConfidenceLevel,
+    /// Seeded nodes as `(label, activation, kind)` — populated when `explain`.
     pub seeds: Vec<(String, f32, NodeKind)>,
+    /// Hop-by-hop propagation steps — populated when `explain`.
     pub trace: Vec<TraceStep>,
 }
 
+/// The query engine: pure computation over an immutable [`KnowledgeBase`].
 pub struct Engine<'a> {
     kb: &'a KnowledgeBase,
 }
 
 impl<'a> Engine<'a> {
+    /// Create an engine over the given knowledge base.
     pub fn new(kb: &'a KnowledgeBase) -> Self {
         Self { kb }
     }
 
+    /// Run one query: seed → propagate (λ decay, max 4 hops) → rank → classify.
+    ///
+    /// Returns a [`QueryResult`] with the top solution, confidence level, and
+    /// (when `explain` is true) the activation seeds and hop-by-hop trace.
     pub fn query(&self, query: &str, explain: bool) -> QueryResult {
         let tokens = self.tokenise(query);
         // BTreeMap, not HashMap: deterministic iteration order is a hard invariant
@@ -162,6 +189,9 @@ impl<'a> Engine<'a> {
         }
     }
 
+    /// Tokenise a query into lowercase keyword tokens: split on non-alphanumerics
+    /// and drop stop words. Phase 1 simple tokeniser; superseded by BM25 in
+    /// Phase 13.
     pub fn tokenise(&self, input: &str) -> Vec<String> {
         // Stop words to discard.
         const STOP: &[&str] = &[
