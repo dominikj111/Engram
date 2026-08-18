@@ -49,10 +49,9 @@ and progressively smarter from there.
 
 ### Engineering-guideline compliance backlog
 
-The roadmap is governed by the engineering workspace guidelines
-(`llm_profiles/engineering/`): `rust_development_guidelines.md`,
-`software_development_style_guides.md`, `icm_mwp_guidelines.md`,
-`git_commit_conventions.md`. Every phase below must carry tests and
+The roadmap is governed by the engineering workspace's development guidelines
+(Rust development guidelines, software development style guides, ICM/MWP
+guidelines, git commit conventions). Every phase below must carry tests and
 rustdoc as part of its deliverable (style guide §5: *tests are part of the
 deliverable*; rust guidelines: *rustdoc with examples*, *production-grade
 error types*). The items below are the backlog to bring the current repo
