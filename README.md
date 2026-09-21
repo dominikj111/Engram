@@ -84,6 +84,10 @@ A fleet of specialist graphs coordinated by a router is a deterministic
 sparse Mixture of Experts: large total knowledge, small per-query compute,
 every routing decision auditable.
 
+Guild is the event-sourced runtime that hosts this mesh as a persistent society: Engram is
+Guild's deterministic decision kernel, and the router-plus-specialists pattern becomes Guild's
+agent society over an immutable event log (see [future.md §20.11](docs/future.md)).
+
 **LLM tool gateway — structural security boundary** — current LLM tool
 security relies on system prompts and scattered runtime checks: fuzzy fuses
 that a sufficiently persuasive input can blow. When an LLM calls Engram via

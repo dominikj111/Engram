@@ -711,6 +711,16 @@ Events are persisted to an `events.json` log. Unprocessed events (e.g.
 the user's session was closed before the async action completed) are queued
 and delivered at the start of the next session.
 
+**Guild is this direction, already realized.** The event-driven core described here is the
+architecture of Guild — an event-sourced reactive runtime where the world is the primary entity,
+state is a projection over an immutable event log, and reactions are deterministic. In that
+system Engram is the deterministic decision kernel: recurring decisions resolve on the graph with
+no model call, and each LLM resolution of a novel case reinforces the graph (Guild §13.7). Engram
+and Guild are complementary, not competing: Guild owns the loop, ordering, recovery and
+accounting; Engram owns the learned graph that makes recurring decisions free. The
+`(event, session) → response` entry point below is Engram's standalone form of the same loop
+Guild runs as a society.
+
 ---
 
 ## 21. Summary
